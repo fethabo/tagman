@@ -39,5 +39,13 @@
     "start": "node bin/tagman.js"
   },
   "author": "fethabo",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fethabo/tagman.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fethabo/tagman/issues"
+  },
+  "homepage": "https://github.com/fethabo/tagman#readme"
 }
