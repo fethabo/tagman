@@ -1,0 +1,36 @@
+{
+  "name": "tagman",
+  "version": "1.0.0",
+  "description": "Herramienta CLI interactiva en TypeScript para la gestion de versionado y tagging granular en monorepos (pnpm workspaces).",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "tagman": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "start": "node bin/tagman.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@clack/prompts": "^1.1.0",
+    "commander": "^14.0.3",
+    "conventional-commits-parser": "^6.3.0",
+    "fast-glob": "^3.3.3",
+    "picocolors": "^1.1.1",
+    "semver": "^7.7.4",
+    "simple-git": "^3.33.0",
+    "yaml": "^2.8.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/conventional-commits-parser": "^5.0.2",
+    "@types/node": "^25.5.0",
+    "@types/semver": "^7.7.1",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
