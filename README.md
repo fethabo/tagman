@@ -37,7 +37,7 @@ Follow the on-screen steps to select packages, apply bumps, verify cascade depen
 
 ### Roadmap 🗺️
 - [ ] **Cross-Workspace Support**: Expand compatibility to `npm`, `yarn`, and `bun` workspaces.
-- [ ] **Single Package Support**: Allow running `tagman` in standard, non-monorepo repositories.
+- [x] **Single Package Support**: Allow running `tagman` in standard, non-monorepo repositories.
 - [ ] **NPM Publishing**: Native support to push the bumped packages directly to the npm registry.
 - [ ] **GitHub Releases**: Automatically draft and publish comprehensive GitHub Releases using the generated Git tags.
 
@@ -74,6 +74,6 @@ Sigue los pasos en pantalla para seleccionar los paquetes, aplicar los increment
 
 ### Hoja de Ruta (Roadmap) 🗺️
 - [ ] **Soporte multi-workspace**: Extender la compatibilidad a workspaces de `npm`, `yarn` y `bun`.
-- [ ] **Soporte para Single Package**: Permitir la ejecución de `tagman` en repositorios estándar que no sean monorepos.
+- [x] **Soporte para Single Package**: Permitir la ejecución de `tagman` en repositorios estándar que no sean monorepos.
 - [ ] **Publicaciones en NPM**: Soporte nativo para publicar directamente los paquetes en el registro de npm.
 - [ ] **GitHub Releases**: Automatizar la creación y publicación de GitHub Releases utilizando la información de los tags generados.

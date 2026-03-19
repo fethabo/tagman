@@ -6,7 +6,7 @@ import { WorkspacePackage } from "./workspace.js";
 export interface ReleaseState {
   pkg: WorkspacePackage;
   commits: { hash: string, message: string }[];
-  bump: "patch" | "minor" | "major";
+  bump: "patch" | "minor" | "major" | "none" | "custom";
   newVersion: string;
   tagMessage: string;
 }

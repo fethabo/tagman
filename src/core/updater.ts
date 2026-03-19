@@ -4,16 +4,14 @@ import { PackageJson, packageJsonSchema } from "../schemas/index.js";
 import { readJson, writeJson, appendToFile } from "../utils/index.js";
 import { SemverBump } from "./commits.js";
 
-export async function updatePackageVersion(pkgDir: string, releaseBump: SemverBump): Promise<string> {
+export async function updatePackageVersion(pkgDir: string, newVersion: string): Promise<string> {
   const pkgJsonPath = path.join(pkgDir, "package.json");
   const pkg: PackageJson = await readJson(pkgJsonPath, { parse: packageJsonSchema.parse });
   
-  const currentVersion = pkg.version;
-  const newVersion = semver.inc(currentVersion, releaseBump);
-  if (!newVersion) throw new Error(`Could not increment version for ${pkg.name}`);
-  
-  pkg.version = newVersion;
-  await writeJson(pkgJsonPath, pkg);
+  if (pkg.version !== newVersion) {
+    pkg.version = newVersion;
+    await writeJson(pkgJsonPath, pkg);
+  }
   return newVersion;
 }
 

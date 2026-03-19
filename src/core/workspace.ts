@@ -12,7 +12,17 @@ export async function getWorkspacePackages(rootDir: string = process.cwd()): Pro
   const workspaceYamlPath = path.join(rootDir, "pnpm-workspace.yaml");
   
   if (!(await fileExists(workspaceYamlPath))) {
-    throw new Error("No pnpm-workspace.yaml found. Are you in a pnpm workspace root?");
+    // Single package fallback
+    const rootPkgJsonMatch = path.join(rootDir, "package.json");
+    if (await fileExists(rootPkgJsonMatch)) {
+      try {
+        const manifest = await readJson(rootPkgJsonMatch, { parse: packageJsonSchema.parse });
+        return [{ dir: rootDir, manifest }];
+      } catch (e) {
+        throw new Error("Found package.json at root but could not parse it.");
+      }
+    }
+    throw new Error("No pnpm-workspace.yaml or valid package.json found.");
   }
 
   const workspaceDef = await readYaml(workspaceYamlPath, { parse: pnpmWorkspaceSchema.parse });

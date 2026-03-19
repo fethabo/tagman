@@ -13,7 +13,7 @@ export const wizardCommand = new Command("release")
   .description("Start the interactive tagman release wizard")
   .action(async () => {
     console.clear();
-    p.intro(`${color.bgCyan(color.black(" tagman "))} Monorepo Releaser`);
+    p.intro(`${color.bgCyan(color.black(" tagman "))} Releaser`);
 
     try {
       if (await hasUncommittedChanges()) {
@@ -83,7 +83,7 @@ export const wizardCommand = new Command("release")
 
       const allPackages = await getWorkspacePackages();
       if (allPackages.length === 0) {
-        p.log.warn("No packages found in pnpm workspace.");
+        p.log.warn("No valid packages found in this project.");
         p.outro("Bye!");
         return;
       }
@@ -164,7 +164,9 @@ export const wizardCommand = new Command("release")
           options: [
             { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? "suggested" : undefined },
             { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? "suggested" : undefined },
-            { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? "suggested" : undefined }
+            { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? "suggested" : undefined },
+            { value: "none", label: `No incrementar (solo Git Tag: ${pkgInfo.pkg.manifest.version})` },
+            { value: "custom", label: `Definir una versión específica...` }
           ],
           initialValue: suggested,
         });
@@ -174,7 +176,24 @@ export const wizardCommand = new Command("release")
           return;
         }
 
-        const newVersion = semver.inc(pkgInfo.pkg.manifest.version, bump as semver.ReleaseType)!;
+        let newVersion: string;
+        if (bump === "none") {
+           newVersion = pkgInfo.pkg.manifest.version;
+        } else if (bump === "custom") {
+           const customV = await p.text({
+             message: `Escribe la nueva versión exacta (SemVer) para ${pkgName}:`,
+             validate: (val) => {
+               if (!semver.valid(val)) return "Error: debe ser una versión SemVer válida (ej: 1.2.3)";
+             }
+           });
+           if (p.isCancel(customV)) {
+             p.cancel("Operation cancelled.");
+             return;
+           }
+           newVersion = semver.clean(customV as string)!;
+        } else {
+           newVersion = semver.inc(pkgInfo.pkg.manifest.version, bump as semver.ReleaseType)!;
+        }
 
         // Step 4: Cascade analysis
         const dependents = getDependents(pkgName, allPackages);
@@ -218,7 +237,7 @@ export const wizardCommand = new Command("release")
         state.set(pkgName, {
            pkg: pkgInfo.pkg,
            commits: chosenCommits,
-           bump: bump as "patch" | "minor" | "major",
+           bump: bump as "patch" | "minor" | "major" | "none" | "custom",
            newVersion,
            tagMessage: defaultTagMsg
         });
@@ -316,7 +335,7 @@ export const wizardCommand = new Command("release")
 
       for (const [pkgName, details] of state.entries()) {
         try {
-           await updatePackageVersion(details.pkg.dir, details.bump);
+           await updatePackageVersion(details.pkg.dir, details.newVersion);
            await appendToChangelog(details.pkg.dir, details.newVersion, details.commits);
            releasedLog[pkgName] = details.newVersion;
 
