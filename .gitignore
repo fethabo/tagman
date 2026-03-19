@@ -1,4 +1,5 @@
 node_modules
 .tagman-checkpoint.json
+.tagman-release.log
 dist
 .turbo
