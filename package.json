@@ -1,5 +1,5 @@
 {
-  "name": "tagman",
+  "name": "@fethabo/tagman",
   "version": "1.0.1",
   "dependencies": {
     "@clack/prompts": "^1.1.0",
@@ -26,11 +26,18 @@
   "bin": {
     "tagman": "./dist/index.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "module": ".dist/index.mjs",
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/index.ts",
     "start": "node bin/tagman.js"
   },
-  "author": "",
+  "author": "fethabo",
   "license": "ISC"
 }

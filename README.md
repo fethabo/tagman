@@ -35,6 +35,11 @@ npx tagman release
 
 Follow the on-screen steps to select packages, apply bumps, verify cascade dependencies, and generate your annotated Git tags.
 
+Once the wizard completes, don't forget to push your new commits and tags to your remote repository:
+```bash
+git push --follow-tags
+```
+
 ### Roadmap 🗺️
 - [ ] **Cross-Workspace Support**: Expand compatibility to `npm`, `yarn`, and `bun` workspaces.
 - [x] **Single Package Support**: Allow running `tagman` in standard, non-monorepo repositories.
@@ -71,6 +76,11 @@ npx tagman release
 ```
 
 Sigue los pasos en pantalla para seleccionar los paquetes, aplicar los incrementos de versión, verificar las dependencias en cascada y generar tus tags anotados de Git.
+
+Una vez que el wizard termine, no olvides hacer *push* de tus nuevos commits y tags a tu repositorio remoto:
+```bash
+git push --follow-tags
+```
 
 ### Hoja de Ruta (Roadmap) 🗺️
 - [ ] **Soporte multi-workspace**: Extender la compatibilidad a workspaces de `npm`, `yarn` y `bun`.
