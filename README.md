@@ -21,16 +21,23 @@ Unlike fully automated semantic release tools, **tagman** doesn't execute destru
 - **Cascade Versioning**: Scans your workspace dependency graph. If `Package A` is updated, it offers to automatically bump `App B` that consumes it.
 - **Intelligent Checkpointing**: If a release process is interrupted, `tagman` creates a local state checkpoint. You can safely resume your release later, or use the intelligent rollback feature to cleanly revert `package.json` and `CHANGELOG.md` file changes.
 
-### Usage
+### Quick Start
 
-Run `tagman` directly in the root of your workspace:
+You can run `tagman` on the fly without installing it globally:
 
 ```bash
-# Using simple execution (if linked)
-tagman release
+npx @fethabo/tagman release
+# or
+pnpm dlx @fethabo/tagman release
+```
 
-# Using npx / pnpm dlx
-npx tagman release
+Alternatively, you can add it as a development dependency to your workspace root:
+
+```bash
+pnpm add -Dw @fethabo/tagman
+
+# Then run it via your package manager
+pnpm tagman release
 ```
 
 Follow the on-screen steps to select packages, apply bumps, verify cascade dependencies, and generate your annotated Git tags.
@@ -63,16 +70,23 @@ A diferencia de las herramientas de *semantic release* completamente automatizad
 - **Versionado en Cascada**: Escanea el grafo de dependencias de tu workspace. Si el `Paquete A` se actualiza, te ofrece actualizar automáticamente la `App B` que lo consume.
 - **Checkpoints Inteligentes (Resiliencia)**: Si un proceso de release se interrumpe, `tagman` crea un punto de guardado local. Puedes retomar tu lanzamiento más tarde o usar la función de *rollback* interactivo para revertir de manera limpia los cambios en los archivos `package.json` y `CHANGELOG.md`.
 
-### Uso
+### Inicio Rápido
 
-Ejecuta `tagman` directamente en la raíz de tu workspace:
+Puedes ejecutar `tagman` al vuelo sin instalarlo globalmente:
 
 ```bash
-# Ejecución directa (si está linkeado globalmente)
-tagman release
+npx @fethabo/tagman release
+# o bien
+pnpm dlx @fethabo/tagman release
+```
 
-# Usando npx / pnpm dlx
-npx tagman release
+Alternativamente, puedes agregarlo como dependencia de desarrollo en la raíz de tu workspace:
+
+```bash
+pnpm add -Dw @fethabo/tagman
+
+# Luego ejecútalo a través de tu gestor de paquetes
+pnpm tagman release
 ```
 
 Sigue los pasos en pantalla para seleccionar los paquetes, aplicar los incrementos de versión, verificar las dependencias en cascada y generar tus tags anotados de Git.
