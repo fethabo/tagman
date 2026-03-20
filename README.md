@@ -1,3 +1,5 @@
+![tagman banner](tagman.png)
+
 # tagman 🏷️
 
 > *You are tagman, transform commits on multipackages monorepo to descriptive and normalize tags on your github repo.*
