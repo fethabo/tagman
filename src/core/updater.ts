@@ -53,25 +53,18 @@ export async function getRepositoryBaseUrl(): Promise<string> {
 }
 
 export function formatCommitList(commits: CommitInfo[], baseUrl: string): { items: string[], references: string[] } {
-  const references: string[] = [];
   const parsedCommits = commits.map(c => {
     const shortHash = c.hash.substring(0, 7);
     
-    let hashLink = `[${shortHash}](${c.hash})`;
-    if (baseUrl && c.hash !== "cascade") {
-      hashLink = `[${shortHash}]`;
-      references.push(`[${shortHash}]: ${baseUrl}/commit/${c.hash}`);
-    }
+    const hashLink = baseUrl && c.hash !== "cascade" 
+      ? `([${shortHash}](${baseUrl}/commit/${c.hash}))` 
+      : `([${shortHash}](${c.hash}))`;
     
     let msg = c.message;
     msg = msg.replace(/#(\d+)/g, (match, issueNum) => {
-      if (baseUrl) {
-        if (!references.some(r => r.startsWith(`[#${issueNum}]:`))) {
-          references.push(`[#${issueNum}]: ${baseUrl}/issues/${issueNum}`);
-        }
-        return `[#${issueNum}]`;
-      }
-      return `[#${issueNum}](#${issueNum})`;
+      return baseUrl 
+        ? `([#${issueNum}](${baseUrl}/issues/${issueNum}))` 
+        : `([#${issueNum}](#${issueNum}))`;
     });
 
     let formattedMsg = msg;
@@ -82,16 +75,13 @@ export function formatCommitList(commits: CommitInfo[], baseUrl: string): { item
 
     let authorLink = "";
     if (c.author_name && c.author_name !== "tagman") {
-       authorLink = ` [@${c.author_name}]`;
-       if (!references.some(r => r.startsWith(`[@${c.author_name}]:`))) {
-         references.push(`[@${c.author_name}]: https://github.com/${c.author_name}`);
-       }
+       authorLink = ` [@${c.author_name}](https://github.com/${c.author_name})`;
     }
 
-    return `* ${formattedMsg}${authorLink} (${hashLink})`;
+    return `* ${formattedMsg}${authorLink} ${hashLink}`;
   });
 
-  return { items: parsedCommits, references };
+  return { items: parsedCommits, references: [] };
 }
 
 export async function appendToChangelog(
@@ -111,21 +101,12 @@ export async function appendToChangelog(
     ? `${baseUrl}/compare/${pkgName}@${prevVersion}...${pkgName}@${newVersion}`
     : `${pkgName}@${prevVersion}...${pkgName}@${newVersion}`;
 
-  if (baseUrl) {
-    references.unshift(`[${newVersion}]: ${compareLinkUrl}`);
-  }
-
-  const header = baseUrl ? `## [${newVersion}] (${date})` : `## [${newVersion}](${compareLinkUrl}) (${date})`;
+  const header = `## [${newVersion}](${compareLinkUrl}) (${date})`;
 
   const lines = [
     `\n${header}\n`,
     ...items
   ];
-  
-  if (references.length > 0) {
-    lines.push("");
-    lines.push(...references);
-  }
   
   await appendToFile(changelogPath, lines.join("\n") + "\n");
 }

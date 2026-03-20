@@ -233,12 +233,9 @@ export const wizardCommand = new Command("release")
 
         // Generate default tag message
         const baseUrl = await getRepositoryBaseUrl();
-        const { items, references } = formatCommitList(chosenCommits, baseUrl);
+        const { items } = formatCommitList(chosenCommits, baseUrl);
         
         let defaultTagMsg = `Release ${pkgName}@${newVersion}\n\n` + items.join("\n");
-        if (references.length > 0) {
-           defaultTagMsg += "\n\n" + references.join("\n");
-        }
 
         state.set(pkgName, {
            pkg: pkgInfo.pkg,
