@@ -13,3 +13,13 @@
 - 919b801 Actualizada info de package.json para publicar en npm. Actualizado readme
 - d129948 update gitignore
 - 18e92c2 update gitignore
+
+## [1.0.3] (2026-03-20)
+
+* **fix:** cambiado formato tambien en wizard. [@fethabo] ([65aa654])
+* **fix:** corregido formato de comentario de tags [@fethabo] ([9c7995d])
+
+[1.0.3]: https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.0.2...@fethabo/tagman@1.0.3
+[65aa654]: https://github.com/fethabo/tagman/commit/65aa6546f1bf22f8b9932c228ea5632c15c72c13
+[@fethabo]: https://github.com/fethabo
+[9c7995d]: https://github.com/fethabo/tagman/commit/9c7995d0fc0cb026ea25a10ef500538a16e88f59
