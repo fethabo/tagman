@@ -2,10 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileExists } from "../utils/index.js";
 import { WorkspacePackage } from "./workspace.js";
+import { CommitInfo } from "../git/index.js";
 
 export interface ReleaseState {
   pkg: WorkspacePackage;
-  commits: { hash: string, message: string }[];
+  commits: CommitInfo[];
   bump: "patch" | "minor" | "major" | "none" | "custom";
   newVersion: string;
   tagMessage: string;

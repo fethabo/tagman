@@ -6,6 +6,7 @@ export interface CommitInfo {
   hash: string;
   message: string;
   body: string;
+  author_name: string;
 }
 
 export async function hasUncommittedChanges(): Promise<boolean> {
@@ -71,7 +72,8 @@ export async function getCommitsForPath(path: string, sinceTag: string | null): 
     return customLog.all.map(c => ({
       hash: c.hash,
       message: c.message,
-      body: c.body
+      body: c.body,
+      author_name: c.author_name
     }));
 
   } catch (error) {

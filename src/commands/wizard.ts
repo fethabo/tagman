@@ -89,7 +89,7 @@ export const wizardCommand = new Command("release")
       }
 
       if (!isRecovered) {
-        const packagesWithCommits: { pkg: WorkspacePackage, commits: { hash: string, message: string }[], lastTag: string | null }[] = [];
+        const packagesWithCommits: { pkg: WorkspacePackage, commits: import("../git/index.js").CommitInfo[], lastTag: string | null }[] = [];
 
         const spinner = p.spinner();
         spinner.start("Scanning packages for new commits...");
@@ -218,13 +218,13 @@ export const wizardCommand = new Command("release")
                   if (!packagesWithCommits.find(p => p.pkg.manifest.name === dep.manifest.name)) {
                      packagesWithCommits.push({
                         pkg: dep,
-                        commits: [{ hash: "cascade", message: `chore: update dependency ${pkgName} to ${newVersion}` }],
+                        commits: [{ hash: "cascade", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman" }],
                         lastTag: null
                      });
                   } else {
                      // Add the chore message to its commits
                      const existing = packagesWithCommits.find(p => p.pkg.manifest.name === dep.manifest.name)!;
-                     existing.commits.unshift({ hash: "cascade", message: `chore: update dependency ${pkgName} to ${newVersion}` });
+                     existing.commits.unshift({ hash: "cascade", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman" });
                   }
                 }
              }
@@ -336,7 +336,7 @@ export const wizardCommand = new Command("release")
       for (const [pkgName, details] of state.entries()) {
         try {
            await updatePackageVersion(details.pkg.dir, details.newVersion);
-           await appendToChangelog(details.pkg.dir, details.newVersion, details.commits);
+           await appendToChangelog(pkgName, details.pkg.dir, details.newVersion, details.pkg.manifest.version, details.commits);
            releasedLog[pkgName] = details.newVersion;
 
            // Update consumers dependencies

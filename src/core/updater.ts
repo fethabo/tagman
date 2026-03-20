@@ -37,14 +37,89 @@ export async function updateConsumerDependencies(
   await writeJson(pkgJsonPath, pkg);
 }
 
-export async function appendToChangelog(pkgDir: string, version: string, commits: { hash: string, message: string }[]): Promise<void> {
+import { CommitInfo } from "../git/index.js";
+
+export async function appendToChangelog(
+  pkgName: string, 
+  pkgDir: string, 
+  newVersion: string, 
+  prevVersion: string, 
+  commits: CommitInfo[]
+): Promise<void> {
   const date = new Date().toISOString().split("T")[0];
   const changelogPath = path.join(pkgDir, "CHANGELOG.md");
   
+  let baseUrl = "";
+  try {
+    const rootPkg = await readJson(path.join(process.cwd(), "package.json"), { parse: packageJsonSchema.parse });
+    if (rootPkg.repository) {
+      let url = typeof rootPkg.repository === 'string' ? rootPkg.repository : (rootPkg.repository as any).url;
+      if (url) {
+        baseUrl = url.replace(/^git\+/, '').replace(/\.git$/, '');
+      }
+    }
+  } catch (e) {
+    // Ignore, baseUrl remains empty
+  }
+
+  const references: string[] = [];
+  
+  const compareLinkUrl = baseUrl 
+    ? `${baseUrl}/compare/${pkgName}@${prevVersion}...${pkgName}@${newVersion}`
+    : `${pkgName}@${prevVersion}...${pkgName}@${newVersion}`;
+
+  if (baseUrl) {
+    references.push(`[${newVersion}]: ${compareLinkUrl}`);
+  }
+
+  const header = baseUrl ? `## [${newVersion}] (${date})` : `## [${newVersion}](${compareLinkUrl}) (${date})`;
+
+  const parsedCommits = commits.map(c => {
+    const shortHash = c.hash.substring(0, 7);
+    
+    let hashLink = `[${shortHash}](${c.hash})`;
+    if (baseUrl && c.hash !== "cascade") {
+      hashLink = `[${shortHash}]`;
+      references.push(`[${shortHash}]: ${baseUrl}/commit/${c.hash}`);
+    }
+    
+    let msg = c.message;
+    msg = msg.replace(/#(\d+)/g, (match, issueNum) => {
+      if (baseUrl) {
+        if (!references.some(r => r.startsWith(`[#${issueNum}]:`))) {
+          references.push(`[#${issueNum}]: ${baseUrl}/issues/${issueNum}`);
+        }
+        return `[#${issueNum}]`;
+      }
+      return `[#${issueNum}](#${issueNum})`;
+    });
+
+    let formattedMsg = msg;
+    const colonIdx = formattedMsg.indexOf(':');
+    if (colonIdx !== -1 && colonIdx < 30) {
+      formattedMsg = `**${formattedMsg.substring(0, colonIdx + 1)}**${formattedMsg.substring(colonIdx + 1)}`;
+    }
+
+    let authorLink = "";
+    if (c.author_name && c.author_name !== "tagman") {
+       authorLink = ` [@${c.author_name}]`;
+       if (!references.some(r => r.startsWith(`[@${c.author_name}]:`))) {
+         references.push(`[@${c.author_name}]: https://github.com/${c.author_name}`);
+       }
+    }
+
+    return `* ${formattedMsg}${authorLink} (${hashLink})`;
+  });
+
   const lines = [
-    `\n## [${version}] - ${date}`,
-    ...commits.map(c => `- ${c.hash.substring(0, 7)} ${c.message}`)
+    `\n${header}\n`,
+    ...parsedCommits
   ];
+  
+  if (references.length > 0) {
+    lines.push("");
+    lines.push(...references);
+  }
   
   await appendToFile(changelogPath, lines.join("\n") + "\n");
 }
