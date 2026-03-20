@@ -39,41 +39,21 @@ export async function updateConsumerDependencies(
 
 import { CommitInfo } from "../git/index.js";
 
-export async function appendToChangelog(
-  pkgName: string, 
-  pkgDir: string, 
-  newVersion: string, 
-  prevVersion: string, 
-  commits: CommitInfo[]
-): Promise<void> {
-  const date = new Date().toISOString().split("T")[0];
-  const changelogPath = path.join(pkgDir, "CHANGELOG.md");
-  
-  let baseUrl = "";
+export async function getRepositoryBaseUrl(): Promise<string> {
   try {
     const rootPkg = await readJson(path.join(process.cwd(), "package.json"), { parse: packageJsonSchema.parse });
     if (rootPkg.repository) {
       let url = typeof rootPkg.repository === 'string' ? rootPkg.repository : (rootPkg.repository as any).url;
       if (url) {
-        baseUrl = url.replace(/^git\+/, '').replace(/\.git$/, '');
+        return url.replace(/^git\+/, '').replace(/\.git$/, '');
       }
     }
-  } catch (e) {
-    // Ignore, baseUrl remains empty
-  }
+  } catch (e) {}
+  return "";
+}
 
+export function formatCommitList(commits: CommitInfo[], baseUrl: string): { items: string[], references: string[] } {
   const references: string[] = [];
-  
-  const compareLinkUrl = baseUrl 
-    ? `${baseUrl}/compare/${pkgName}@${prevVersion}...${pkgName}@${newVersion}`
-    : `${pkgName}@${prevVersion}...${pkgName}@${newVersion}`;
-
-  if (baseUrl) {
-    references.push(`[${newVersion}]: ${compareLinkUrl}`);
-  }
-
-  const header = baseUrl ? `## [${newVersion}] (${date})` : `## [${newVersion}](${compareLinkUrl}) (${date})`;
-
   const parsedCommits = commits.map(c => {
     const shortHash = c.hash.substring(0, 7);
     
@@ -111,9 +91,35 @@ export async function appendToChangelog(
     return `* ${formattedMsg}${authorLink} (${hashLink})`;
   });
 
+  return { items: parsedCommits, references };
+}
+
+export async function appendToChangelog(
+  pkgName: string, 
+  pkgDir: string, 
+  newVersion: string, 
+  prevVersion: string, 
+  commits: CommitInfo[]
+): Promise<void> {
+  const date = new Date().toISOString().split("T")[0];
+  const changelogPath = path.join(pkgDir, "CHANGELOG.md");
+  
+  const baseUrl = await getRepositoryBaseUrl();
+  const { items, references } = formatCommitList(commits, baseUrl);
+  
+  const compareLinkUrl = baseUrl 
+    ? `${baseUrl}/compare/${pkgName}@${prevVersion}...${pkgName}@${newVersion}`
+    : `${pkgName}@${prevVersion}...${pkgName}@${newVersion}`;
+
+  if (baseUrl) {
+    references.unshift(`[${newVersion}]: ${compareLinkUrl}`);
+  }
+
+  const header = baseUrl ? `## [${newVersion}] (${date})` : `## [${newVersion}](${compareLinkUrl}) (${date})`;
+
   const lines = [
     `\n${header}\n`,
-    ...parsedCommits
+    ...items
   ];
   
   if (references.length > 0) {

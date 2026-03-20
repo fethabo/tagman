@@ -5,7 +5,7 @@ import color from "picocolors";
 import { getWorkspacePackages, WorkspacePackage, getDependents } from "../core/workspace.js";
 import { getCommitsForPath, getLastTagForPackage, createReleaseCommit, createAnnotatedTag, hasUncommittedChanges } from "../git/index.js";
 import { suggestBump } from "../core/commits.js";
-import { updatePackageVersion, updateConsumerDependencies, appendToChangelog, logRelease, rollbackPackageVersion, rollbackConsumerDependencies, rollbackChangelog } from "../core/updater.js";
+import { updatePackageVersion, updateConsumerDependencies, appendToChangelog, logRelease, rollbackPackageVersion, rollbackConsumerDependencies, rollbackChangelog, getRepositoryBaseUrl, formatCommitList } from "../core/updater.js";
 import { loadCheckpoint, saveCheckpoint, clearCheckpoint, ReleaseState } from "../core/checkpoint.js";
 import semver from "semver";
 
@@ -232,7 +232,13 @@ export const wizardCommand = new Command("release")
         }
 
         // Generate default tag message
-        const defaultTagMsg = `Release ${pkgName}@${newVersion}\n\n` + chosenCommits.map(c => `- ${c.hash.substring(0,7)} ${c.message}`).join("\n");
+        const baseUrl = await getRepositoryBaseUrl();
+        const { items, references } = formatCommitList(chosenCommits, baseUrl);
+        
+        let defaultTagMsg = `Release ${pkgName}@${newVersion}\n\n` + items.join("\n");
+        if (references.length > 0) {
+           defaultTagMsg += "\n\n" + references.join("\n");
+        }
 
         state.set(pkgName, {
            pkg: pkgInfo.pkg,
