@@ -23,3 +23,8 @@
 [65aa654]: https://github.com/fethabo/tagman/commit/65aa6546f1bf22f8b9932c228ea5632c15c72c13
 [@fethabo]: https://github.com/fethabo
 [9c7995d]: https://github.com/fethabo/tagman/commit/9c7995d0fc0cb026ea25a10ef500538a16e88f59
+
+## [1.0.4](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.0.3...@fethabo/tagman@1.0.4) (2026-03-20)
+
+* **fix:** quitadas refrencias, colocado href inline [@fethabo](https://github.com/fethabo) ([4aca4d1](https://github.com/fethabo/tagman/commit/4aca4d11dffd3194193e237c20329d7675b2aeec))
+* **chore:** removidos archivos logs de seguimiento, update gitignore [@fethabo](https://github.com/fethabo) ([d9f4f82](https://github.com/fethabo/tagman/commit/d9f4f82ec06dad07838598e6cde5af4c2f236db9))
