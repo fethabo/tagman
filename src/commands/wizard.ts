@@ -235,7 +235,7 @@ export const wizardCommand = new Command("release")
         const baseUrl = await getRepositoryBaseUrl();
         const { items } = formatCommitList(chosenCommits, baseUrl);
         
-        let defaultTagMsg = `Release ${pkgName}@${newVersion}\n\n` + items.join("\n");
+        let defaultTagMsg = `${pkgName}@${newVersion}\n\n` + items.join("\n");
 
         state.set(pkgName, {
            pkg: pkgInfo.pkg,

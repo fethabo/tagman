@@ -56,15 +56,13 @@ export function formatCommitList(commits: CommitInfo[], baseUrl: string): { item
   const parsedCommits = commits.map(c => {
     const shortHash = c.hash.substring(0, 7);
     
-    const hashLink = baseUrl && c.hash !== "cascade" 
-      ? `([${shortHash}](${baseUrl}/commit/${c.hash}))` 
-      : `([${shortHash}](${c.hash}))`;
+    // Use short hash without markdown link for GitHub autolinking
+    const hashLink = baseUrl && c.hash !== "cascade" ? shortHash : `([${shortHash}](${c.hash}))`;
     
     let msg = c.message;
+    // Keep #issue for autolinking
     msg = msg.replace(/#(\d+)/g, (match, issueNum) => {
-      return baseUrl 
-        ? `([#${issueNum}](${baseUrl}/issues/${issueNum}))` 
-        : `([#${issueNum}](#${issueNum}))`;
+      return baseUrl ? `#${issueNum}` : `([#${issueNum}](#${issueNum}))`;
     });
 
     let formattedMsg = msg;
@@ -73,9 +71,10 @@ export function formatCommitList(commits: CommitInfo[], baseUrl: string): { item
       formattedMsg = `**${formattedMsg.substring(0, colonIdx + 1)}**${formattedMsg.substring(colonIdx + 1)}`;
     }
 
+    // @username format works automatically in GitHub
     let authorLink = "";
     if (c.author_name && c.author_name !== "tagman") {
-       authorLink = ` [@${c.author_name}](https://github.com/${c.author_name})`;
+       authorLink = ` @${c.author_name}`;
     }
 
     return `* ${formattedMsg}${authorLink} ${hashLink}`;
