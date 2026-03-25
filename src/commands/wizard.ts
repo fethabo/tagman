@@ -156,7 +156,7 @@ export const wizardCommand = new Command("release")
               }))
             ],
             initialValues: commitInitialValues,
-            required: false,
+            required: true,
           });
 
           if (p.isCancel(selectedCommitHashes)) {
@@ -173,11 +173,6 @@ export const wizardCommand = new Command("release")
 
           if (hashes.includes(DESELECT_ALL_VALUE)) {
             commitInitialValues = [];
-            continue;
-          }
-
-          if (hashes.length === 0) {
-            p.log.warn('You must select at least one commit.');
             continue;
           }
 
