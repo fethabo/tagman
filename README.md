@@ -4,12 +4,20 @@
 
 > *You are tagman, transform commits on multipackages monorepo to descriptive and normalize tags on your github repo.*
 
+
+
 [English](#english) | [Español](#español)
 
 ---
 
 <a name="english"></a>
 ## 🇬🇧 English
+
+## 🤖 A Note on Project Origins
+
+***tagman was conceived and developed primarily through agentic programming flows. I leveraged supervised AI agents to materialize a solution to a recurring need I encountered across multiple projects—one that conventional release tools failed to address satisfactorily. I'm aware that workflows vary drastically between teams and that creating a universally flexible tool is a monumental challenge. However, as part of my professional growth and my commitment to the future of software development, my goal is to iterate on tagman until it achieves that flexibility.***
+
+***P.S.: And yes, this readme was also written by an agent.***
 
 **tagman** is an interactive, developer-first CLI tool built in TypeScript. It empowers you to granularly manage versioning and tagging within monorepos (currently heavily optimized for `pnpm` workspaces). 
 
@@ -59,6 +67,12 @@ git push --follow-tags
 
 <a name="español"></a>
 ## 🇪🇸 Español
+
+## 🤖 Nota sobre el origen del proyecto
+
+***tagman fue concebido y desarrollado principalmente a través de flujos de programación agéntica. Utilicé agentes de IA supervisados para materializar una solución a una necesidad recurrente que encontré en múltiples proyectos y que las herramientas de release convencionales no lograban cubrir de forma satisfactoria. Soy consciente de que los flujos de trabajo varían drásticamente entre equipos y que crear una herramienta universalmente flexible es un desafío monumental. Sin embargo, como parte de mi crecimiento profesional y mi apuesta por el futuro del desarrollo de software, mi objetivo es iterar tagman hasta alcanzar esa flexibilidad***
+
+***PD: Y sí, este readme tambien lo escribió un agente***
 
 **tagman** es una herramienta CLI interactiva construida en TypeScript, centrada en el desarrollador. Te otorga el poder de gestionar el versionado y el etiquetado (tagging) de forma granular dentro de monorepos (actualmente optimizado para workspaces de `pnpm`).
 
