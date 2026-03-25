@@ -57,11 +57,36 @@ Once the wizard completes, don't forget to push your new commits and tags to you
 git push --follow-tags
 ```
 
-### Roadmap 🗺️
-- [ ] **Cross-Workspace Support**: Expand compatibility to `npm`, `yarn`, and `bun` workspaces.
-- [x] **Single Package Support**: Allow running `tagman` in standard, non-monorepo repositories.
-- [ ] **NPM Publishing**: Native support to push the bumped packages directly to the npm registry.
-- [ ] **GitHub Releases**: Automatically draft and publish comprehensive GitHub Releases using the generated Git tags.
+### 🗺️ Roadmap
+This project is constantly evolving. The following milestones mark the technical direction of tagman:
+
+#### 📦 Phase 1: Compatibility & Scope (Core)
+[ ] Multi-workspace Support: Extend current pnpm compatibility to npm, yarn, and bun environments.
+
+[x] Single Package Mode: Enable execution in standard repositories without monorepo structures.
+
+[ ] Plugin Architecture: Allow custom versioning logic for different workflows.
+
+#### 🚀 Phase 2: Automation & Ecosystem
+[ ] NPM Publishing: Native support for publishing packages directly to the npm registry after tagging.
+
+[ ] GitHub Releases: Automate the creation of releases on GitHub using the official API and tag information.
+
+[x] CHANGELOG.md Generator: Option to persist change history in a physical file in addition to tag metadata.
+
+🌍 Phase 3: User Experience & i18n
+[ ] Multi-language Support: Implement an internationalization (i18n) system for CLI messages.
+
+[ ] Hot-swappable Language: Allow language switching at runtime via flags (e.g., tagman --lang en).
+
+[ ] UI Refinement: Optimize @clack/prompts interactive interfaces for better readability.
+
+🤖 Phase 4: Agentic Optimization (AI-Ready)
+[ ] JSON Mode (--json): Structured data output so an AI agent can process command results without text parsing.
+
+[ ] Headless Mode: Non-interactive execution via parameters to facilitate automation in scripts and agentic flows.
+
+[ ] Simulation (--dry-run): Preview all changes (tags, versions, files) without executing real actions on the filesystem or Git.
 
 ---
 
@@ -111,9 +136,34 @@ Una vez que el wizard termine, no olvides hacer *push* de tus nuevos commits y t
 ```bash
 git push --follow-tags
 ```
+### 🗺️ Hoja de Ruta (Roadmap)
+Este proyecto está en constante evolución. Los siguientes hitos marcan la dirección técnica de tagman:
 
-### Hoja de Ruta (Roadmap) 🗺️
-- [ ] **Soporte multi-workspace**: Extender la compatibilidad a workspaces de `npm`, `yarn` y `bun`.
-- [x] **Soporte para Single Package**: Permitir la ejecución de `tagman` en repositorios estándar que no sean monorepos.
-- [ ] **Publicaciones en NPM**: Soporte nativo para publicar directamente los paquetes en el registro de npm.
-- [ ] **GitHub Releases**: Automatizar la creación y publicación de GitHub Releases utilizando la información de los tags generados.
+#### 📦 Fase 1: Compatibilidad y Alcance (Core)
+[ ] Soporte multi-workspace: Extender la compatibilidad actual de pnpm a entornos de npm, yarn y bun.
+
+[x] Modo Single Package: Permitir la ejecución en repositorios estándar que no utilicen estructuras de monorepo.
+
+[ ] Arquitectura de Plugins: Permitir lógica de versionado personalizada para diferentes flujos de trabajo.
+
+#### 🚀 Fase 2: Automatización y Ecosistema
+[ ] Publicación en NPM: Soporte nativo para publicar paquetes directamente en el registro de npm tras el tagging.
+
+[ ] GitHub Releases: Automatizar la creación de lanzamientos en GitHub utilizando la API oficial y la información de los tags.
+
+[x] Generador de CHANGELOG.md: Opción para persistir el historial de cambios en un archivo físico además de en los metadatos del tag.
+
+🌍 Fase 3: Experiencia de Usuario e i18n
+[ ] Soporte Multiidioma: Implementar un sistema de internacionalización (i18n) para los mensajes del CLI.
+
+[ ] Hot-swapping de Idioma: Permitir el cambio de idioma en tiempo de ejecución mediante flags (ej. tagman --lang en).
+
+[ ] Refinamiento de UI: Optimizar las interfaces interactivas de @clack/prompts para una mejor legibilidad.
+
+🤖 Fase 4: Optimización Agéntica (IA-Ready)
+[ ] Modo JSON (--json): Salida de datos estructurada para que un agente de IA pueda procesar el resultado del comando sin parsing de texto.
+
+[ ] Modo Headless: Ejecución no interactiva mediante parámetros para facilitar la automatización en scripts y flujos agénticos.
+
+[ ] Simulación (--dry-run): Permitir previsualizar todos los cambios (tags, versiones, archivos) sin ejecutar acciones reales en el sistema de archivos o Git.
+
