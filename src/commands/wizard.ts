@@ -139,22 +139,51 @@ export const wizardCommand = new Command("release")
         if (!pkgInfo) continue; // For cascaded packages without their own changes, we might need a different handling
 
         // Step 2: Commits Selection
-        const selectedCommitHashes = await p.multiselect({
-          message: `Step 2: Commits for ${color.cyan(pkgName)}`,
-          options: pkgInfo.commits.map(c => ({
-            value: c.hash,
-            label: `${c.hash.substring(0, 7)} - ${c.message}`
-          })),
-          initialValues: pkgInfo.commits.map(c => c.hash), // Select all by default
-          required: true,
-        });
+        const SELECT_ALL_VALUE = '__select_all__';
+        const DESELECT_ALL_VALUE = '__deselect_all__';
+        let commitInitialValues: string[] = pkgInfo.commits.map(c => c.hash);
+        let chosenCommits: typeof pkgInfo.commits = [];
 
-        if (p.isCancel(selectedCommitHashes)) {
-           p.cancel("Operation cancelled.");
-           return;
+        while (true) {
+          const selectedCommitHashes = await p.multiselect({
+            message: `Step 2: Commits for ${color.cyan(pkgName)}`,
+            options: [
+              { value: SELECT_ALL_VALUE, label: color.green('◆ Select All'), hint: 'mark all commits' },
+              { value: DESELECT_ALL_VALUE, label: color.yellow('◇ Deselect All'), hint: 'unmark all commits' },
+              ...pkgInfo.commits.map(c => ({
+                value: c.hash,
+                label: `${c.hash.substring(0, 7)} - ${c.message}`
+              }))
+            ],
+            initialValues: commitInitialValues,
+            required: false,
+          });
+
+          if (p.isCancel(selectedCommitHashes)) {
+            p.cancel("Operation cancelled.");
+            return;
+          }
+
+          const hashes = selectedCommitHashes as string[];
+
+          if (hashes.includes(SELECT_ALL_VALUE)) {
+            commitInitialValues = pkgInfo.commits.map(c => c.hash);
+            continue;
+          }
+
+          if (hashes.includes(DESELECT_ALL_VALUE)) {
+            commitInitialValues = [];
+            continue;
+          }
+
+          if (hashes.length === 0) {
+            p.log.warn('You must select at least one commit.');
+            continue;
+          }
+
+          chosenCommits = pkgInfo.commits.filter(c => hashes.includes(c.hash));
+          break;
         }
-
-        const chosenCommits = pkgInfo.commits.filter(c => (selectedCommitHashes as string[]).includes(c.hash));
         
         // Step 3: Version Bump
         const suggested = suggestBump(chosenCommits.map(c => c.message));
