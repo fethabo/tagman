@@ -8,6 +8,7 @@ import { getCommitsForPath, getLastTagForPackage, createReleaseCommit, createAnn
 import { suggestBump } from "../core/commits.js";
 import { updatePackageVersion, updateConsumerDependencies, appendToChangelog, logRelease, rollbackPackageVersion, rollbackConsumerDependencies, rollbackChangelog, getRepositoryBaseUrl, formatCommitList } from "../core/updater.js";
 import { loadCheckpoint, saveCheckpoint, clearCheckpoint, ReleaseState } from "../core/checkpoint.js";
+import { loadConfig } from "../config.js";
 import semver from "semver";
 
 type CommitOpt = { value: string; label: string };
@@ -117,6 +118,8 @@ export const wizardCommand = new Command("release")
     p.intro(`${color.bgCyan(color.black(" tagman "))} Releaser`);
 
     try {
+      const config = await loadConfig();
+
       if (await hasUncommittedChanges()) {
         const proceed = await p.confirm({
           message: `${color.yellow("Advertencia:")} Tienes cambios locales sin commitear. ¿Deseas continuar de todas formas?`,
@@ -158,7 +161,7 @@ export const wizardCommand = new Command("release")
              const rbSpinner = p.spinner();
              rbSpinner.start("Revirtiendo archivos al estado pre-release...");
              
-             const currentWorkspace = await getWorkspacePackages();
+             const currentWorkspace = await getWorkspacePackages(process.cwd(), config);
              const rbState = new Map(checkpoint.state);
              
              for (const [pkgName, details] of rbState.entries()) {
@@ -182,7 +185,7 @@ export const wizardCommand = new Command("release")
         }
       }
 
-      const allPackages = await getWorkspacePackages();
+      const allPackages = await getWorkspacePackages(process.cwd(), config);
       if (allPackages.length === 0) {
         p.log.warn("No valid packages found in this project.");
         p.outro("Bye!");
@@ -328,11 +331,18 @@ export const wizardCommand = new Command("release")
           }
         }
 
-        // Generate default tag message
         const baseUrl = await getRepositoryBaseUrl();
         const { items } = formatCommitList(chosenCommits, baseUrl);
-        
-        let defaultTagMsg = `Release ${pkgName}@${newVersion}\n\n` + items.join("\n");
+
+        const tagHeader = config.tagName === "version-only"
+          ? newVersion
+          : `${pkgName}@${newVersion}`;
+
+        const annotationPrefix = config.annotationMessage
+          ? `${config.annotationMessage}\n\n`
+          : "";
+
+        let defaultTagMsg = `Release ${tagHeader}\n\n${annotationPrefix}` + items.join("\n");
 
         state.set(pkgName, {
            pkg: pkgInfo.pkg,
@@ -476,7 +486,9 @@ export const wizardCommand = new Command("release")
 
       for (const [pkgName, details] of state.entries()) {
          if (details.tagMessage) {
-            const tagName = `${pkgName}@${details.newVersion}`;
+            const tagName = config.tagName === "version-only"
+              ? details.newVersion
+              : `${pkgName}@${details.newVersion}`;
             await createAnnotatedTag(tagName, details.tagMessage);
          }
       }
