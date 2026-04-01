@@ -8,6 +8,7 @@ export const tagmanConfigSchema = z.object({
   packagesRoutes: z.array(z.string()).optional(),
   workspace: z.enum(["pnpm", "npm", "yarn", "bun"]).default("pnpm"),
   annotationMessage: z.string().optional(),
+  language: z.enum(["en", "es"]).default("en"),
 }).strict();
 
 export type TagmanConfig = z.infer<typeof tagmanConfigSchema>;
@@ -17,6 +18,7 @@ const CONFIG_FILENAME = "tagman.config.json";
 const DEFAULTS: TagmanConfig = {
   tagName: "full",
   workspace: "pnpm",
+  language: "en",
 };
 
 export async function loadConfig(cwd: string = process.cwd()): Promise<TagmanConfig> {
