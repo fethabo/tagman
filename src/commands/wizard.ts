@@ -9,6 +9,7 @@ import { suggestBump } from "../core/commits.js";
 import { updatePackageVersion, updateConsumerDependencies, appendToChangelog, logRelease, rollbackPackageVersion, rollbackConsumerDependencies, rollbackChangelog, getRepositoryBaseUrl, formatCommitList } from "../core/updater.js";
 import { loadCheckpoint, saveCheckpoint, clearCheckpoint, ReleaseState } from "../core/checkpoint.js";
 import { loadConfig } from "../config.js";
+import { initI18n, t } from "../i18n/index.js";
 import semver from "semver";
 
 type CommitOpt = { value: string; label: string };
@@ -30,8 +31,8 @@ async function commitMultiSelect(
   const commitValues = options.map(o => o.value);
 
   const allOptions: CommitOpt[] = [
-    { value: SELECT_ALL,   label: `${color.green('◆')} Select All`   },
-    { value: DESELECT_ALL, label: `${color.yellow('◇')} Deselect All` },
+    { value: SELECT_ALL,   label: `${color.green('◆')} ${t("selectAll")}`   },
+    { value: DESELECT_ALL, label: `${color.yellow('◇')} ${t("deselectAll")}` },
     ...options,
   ];
 
@@ -49,7 +50,7 @@ async function commitMultiSelect(
     initialValues,
     validate(value) {
       const real = (value ?? []).filter(v => v !== SELECT_ALL && v !== DESELECT_ALL);
-      if (real.length === 0) return 'Select at least one commit.';
+      if (real.length === 0) return t("selectAtLeastOneCommit");
     },
     render() {
       const val: string[]  = (this as any).value ?? [];
@@ -119,14 +120,15 @@ export const wizardCommand = new Command("release")
 
     try {
       const config = await loadConfig();
+      initI18n(config.language);
 
       if (await hasUncommittedChanges()) {
         const proceed = await p.confirm({
-          message: `${color.yellow("Advertencia:")} Tienes cambios locales sin commitear. ¿Deseas continuar de todas formas?`,
+          message: t("uncommittedWarning"),
           initialValue: false,
         });
         if (p.isCancel(proceed) || !proceed) {
-          p.cancel("Operación cancelada.");
+          p.cancel(t("operationCancelled"));
           return;
         }
       }
@@ -138,12 +140,12 @@ export const wizardCommand = new Command("release")
       const checkpoint = await loadCheckpoint();
       if (checkpoint) {
         const resume = await p.confirm({
-          message: `Se encontró un lanzamiento interrumpido en la fase "${checkpoint.step}". ¿Deseas retomarlo?`,
+          message: t("checkpointFound", { step: checkpoint.step }),
           initialValue: true,
         });
 
         if (p.isCancel(resume)) {
-          p.cancel("Operación cancelada.");
+          p.cancel(t("operationCancelled"));
           return;
         }
 
@@ -153,13 +155,13 @@ export const wizardCommand = new Command("release")
           recoveredStep = checkpoint.step;
         } else {
           const doRollback = await p.confirm({
-             message: "¿Deseas revertir los cambios locales en package.json y CHANGELOG.md que tagman alcanzó a hacer?",
+             message: t("checkpointRollbackPrompt"),
              initialValue: true,
           });
 
           if (!p.isCancel(doRollback) && doRollback) {
              const rbSpinner = p.spinner();
-             rbSpinner.start("Revirtiendo archivos al estado pre-release...");
+             rbSpinner.start(t("checkpointRollingBack"));
              
              const currentWorkspace = await getWorkspacePackages(process.cwd(), config);
              const rbState = new Map(checkpoint.state);
@@ -179,7 +181,7 @@ export const wizardCommand = new Command("release")
                   // Ignore exact errors as files could be locally modified
                 }
              }
-             rbSpinner.stop("Rollback completado. Archivos revertidos adecuadamente.");
+             rbSpinner.stop(t("checkpointRollbackDone"));
           }
           await clearCheckpoint();
         }
@@ -187,8 +189,8 @@ export const wizardCommand = new Command("release")
 
       const allPackages = await getWorkspacePackages(process.cwd(), config);
       if (allPackages.length === 0) {
-        p.log.warn("No valid packages found in this project.");
-        p.outro("Bye!");
+        p.log.warn(t("noValidPackages"));
+        p.outro(t("bye"));
         return;
       }
 
@@ -196,7 +198,7 @@ export const wizardCommand = new Command("release")
         const packagesWithCommits: { pkg: WorkspacePackage, commits: import("../git/index.js").CommitInfo[], lastTag: string | null }[] = [];
 
         const spinner = p.spinner();
-        spinner.start("Scanning packages for new commits...");
+        spinner.start(t("scanningPackages"));
 
       for (const pkg of allPackages) {
         const lastTag = await getLastTagForPackage(pkg.manifest.name);
@@ -206,25 +208,25 @@ export const wizardCommand = new Command("release")
         }
       }
 
-      spinner.stop(`Scanned ${allPackages.length} packages. Found ${packagesWithCommits.length} with pending changes.`);
+      spinner.stop(t("scannedPackages", { total: String(allPackages.length), found: String(packagesWithCommits.length) }));
 
       if (packagesWithCommits.length === 0) {
-        p.outro("No new commits found in any package. Nothing to release.");
+        p.outro(t("noNewCommits"));
         return;
       }
 
       // Step 1: Select packages
       const selectedPkgNames = await p.multiselect({
-        message: "Step 1: Select packages to release",
+        message: t("step1Message"),
         options: packagesWithCommits.map(p => ({
           value: p.pkg.manifest.name,
-          label: `${p.pkg.manifest.name} (${p.commits.length} commits)`
+          label: t("step1PkgLabel", { name: p.pkg.manifest.name, count: String(p.commits.length) })
         })),
         required: true,
       });
 
       if (p.isCancel(selectedPkgNames)) {
-        p.cancel("Operation cancelled.");
+        p.cancel(t("operationCancelled"));
         return;
       }
 
@@ -244,13 +246,13 @@ export const wizardCommand = new Command("release")
 
         // Step 2: Commits Selection
         const selectedCommitHashes = await commitMultiSelect(
-          `Step 2: Commits for ${color.cyan(pkgName)}`,
+          t("step2Message", { pkgName: color.cyan(pkgName) }),
           pkgInfo.commits.map(c => ({ value: c.hash, label: `${c.hash.substring(0, 7)} - ${c.message}` })),
           pkgInfo.commits.map(c => c.hash)
         );
 
         if (p.isCancel(selectedCommitHashes)) {
-          p.cancel("Operation cancelled.");
+          p.cancel(t("operationCancelled"));
           return;
         }
 
@@ -260,19 +262,19 @@ export const wizardCommand = new Command("release")
         const suggested = suggestBump(chosenCommits.map(c => c.message));
         
         const bump = await p.select({
-          message: `Step 3: Version increment for ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
+          message: t("step3Message", { pkgName: color.cyan(pkgName), version: pkgInfo.pkg.manifest.version }),
           options: [
-            { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? "suggested" : undefined },
-            { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? "suggested" : undefined },
-            { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? "suggested" : undefined },
-            { value: "none", label: `No incrementar (solo Git Tag: ${pkgInfo.pkg.manifest.version})` },
-            { value: "custom", label: `Definir una versión específica...` }
+            { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? t("bumpSuggested") : undefined },
+            { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? t("bumpSuggested") : undefined },
+            { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? t("bumpSuggested") : undefined },
+            { value: "none", label: t("bumpNone", { version: pkgInfo.pkg.manifest.version }) },
+            { value: "custom", label: t("bumpCustom") }
           ],
           initialValue: suggested,
         });
 
         if (p.isCancel(bump)) {
-          p.cancel("Operation cancelled.");
+          p.cancel(t("operationCancelled"));
           return;
         }
 
@@ -281,13 +283,13 @@ export const wizardCommand = new Command("release")
            newVersion = pkgInfo.pkg.manifest.version;
         } else if (bump === "custom") {
            const customV = await p.text({
-             message: `Escribe la nueva versión exacta (SemVer) para ${pkgName}:`,
+             message: t("customVersionPrompt", { pkgName }),
              validate: (val) => {
-               if (!semver.valid(val)) return "Error: debe ser una versión SemVer válida (ej: 1.2.3)";
+               if (!semver.valid(val)) return t("customVersionError");
              }
            });
            if (p.isCancel(customV)) {
-             p.cancel("Operation cancelled.");
+             p.cancel(t("operationCancelled"));
              return;
            }
            newVersion = semver.clean(customV as string)!;
@@ -300,12 +302,12 @@ export const wizardCommand = new Command("release")
         if (dependents.length > 0) {
           for (const dep of dependents) {
              const cascade = await p.confirm({
-                message: `Aviso: ${color.cyan(pkgName)} es dependencia de ${color.yellow(dep.manifest.name)}. ¿Deseas versionar también ${color.yellow(dep.manifest.name)} para actualizar su referencia?`,
+                message: t("cascadePrompt", { pkgName: color.cyan(pkgName), depName: color.yellow(dep.manifest.name) }),
                 initialValue: true,
              });
              
              if (p.isCancel(cascade)) {
-                p.cancel("Operation cancelled.");
+                p.cancel(t("operationCancelled"));
                 return;
              }
 
@@ -356,51 +358,51 @@ export const wizardCommand = new Command("release")
       // Step 5: Tags and Changelog Message
       for (const [pkgName, details] of state.entries()) {
          const createTag = await p.confirm({
-            message: `¿Crear tag de Git para ${color.cyan(pkgName)}@${color.green(details.newVersion)}?`,
+            message: t("createTagPrompt", { pkgName: color.cyan(pkgName), version: color.green(details.newVersion) }),
             initialValue: true,
          });
 
          if (p.isCancel(createTag)) {
-           p.cancel("Operation cancelled.");
+           p.cancel(t("operationCancelled"));
            return;
          }
 
          if (createTag) {
-           p.note(details.tagMessage, `Mensaje autogenerado para ${pkgName}`);
+           p.note(details.tagMessage, t("autoGeneratedMsg", { pkgName }));
            
            const msgAction = await p.select({
-              message: "¿Qué mensaje deseas usar para el tag?",
+              message: t("tagMessagePrompt"),
               options: [
-                 { value: "auto", label: "Usar el mensaje autogenerado" },
-                 { value: "append", label: "Agregar texto adicional al autogenerado" },
-                 { value: "custom", label: "Escribir un mensaje completamente nuevo" }
+                 { value: "auto", label: t("tagMsgAuto") },
+                 { value: "append", label: t("tagMsgAppend") },
+                 { value: "custom", label: t("tagMsgCustom") }
               ]
            });
 
            if (p.isCancel(msgAction)) {
-              p.cancel("Operation cancelled.");
+              p.cancel(t("operationCancelled"));
               return;
            }
 
            if (msgAction === "auto") {
               state.get(pkgName)!.tagMessage = details.tagMessage;
            } else if (msgAction === "append") {
-              const appendedMsg = await p.text({ message: "Texto adicional:" });
+              const appendedMsg = await p.text({ message: t("appendTextPrompt") });
               if (p.isCancel(appendedMsg)) {
-                 p.cancel("Operation cancelled.");
+                 p.cancel(t("operationCancelled"));
                  return;
               }
               
               const position = await p.select({
-                 message: "¿Dónde deseas insertar este texto?",
+                 message: t("insertPositionPrompt"),
                  options: [
-                    { value: "before", label: "Antes del listado de commits" },
-                    { value: "after", label: "Al final del mensaje" }
+                    { value: "before", label: t("insertBefore") },
+                    { value: "after", label: t("insertAfter") }
                  ]
               });
 
               if (p.isCancel(position)) {
-                 p.cancel("Operation cancelled.");
+                 p.cancel(t("operationCancelled"));
                  return;
               }
 
@@ -410,9 +412,9 @@ export const wizardCommand = new Command("release")
                  state.get(pkgName)!.tagMessage = details.tagMessage + "\n\n" + (appendedMsg as string);
               }
            } else if (msgAction === "custom") {
-              const customMsg = await p.text({ message: "Nuevo mensaje para el tag:" });
+              const customMsg = await p.text({ message: t("customTagMsgPrompt") });
               if (p.isCancel(customMsg)) {
-                 p.cancel("Operation cancelled.");
+                 p.cancel(t("operationCancelled"));
                  return;
               }
               state.get(pkgName)!.tagMessage = customMsg as string;
@@ -426,12 +428,12 @@ export const wizardCommand = new Command("release")
       // Execution Phase Confirm
       if (!isRecovered) {
         const execute = await p.confirm({
-           message: "Todo listo. ¿Proceder con la escritura, commits y tags?",
+           message: t("confirmExecute"),
            initialValue: false, // Control is key!
         });
 
         if (p.isCancel(execute) || !execute) {
-           p.cancel("Revertido por el usuario.");
+           p.cancel(t("cancelledByUser"));
            return;
         }
         await saveCheckpoint("writing", state);
@@ -439,7 +441,7 @@ export const wizardCommand = new Command("release")
 
       if (!isRecovered || recoveredStep === "writing") {
          const writingSpinner = p.spinner();
-         writingSpinner.start("Escribiendo cambios...");
+         writingSpinner.start(t("writing"));
 
       const releasedLog: Record<string, string> = {};
 
@@ -457,7 +459,7 @@ export const wizardCommand = new Command("release")
               }
            }
         } catch (e) {
-           writingSpinner.stop("Error actualizando archivos.");
+           writingSpinner.stop(t("writeError"));
            console.error(e);
            return;
         }
@@ -465,12 +467,12 @@ export const wizardCommand = new Command("release")
 
          await logRelease(releasedLog);
          
-         writingSpinner.stop("Archivos actualizados.");
+         writingSpinner.stop(t("writeDone"));
          await saveCheckpoint("committing", state);
       }
 
       const commitSpinner = p.spinner();
-      commitSpinner.start("Creando git commit & tags...");
+      commitSpinner.start(t("creatingGit"));
 
       // Prepare release commit
       const pkgsArray = Array.from(state.keys());
@@ -493,13 +495,13 @@ export const wizardCommand = new Command("release")
          }
       }
 
-      commitSpinner.stop("Git configurado.");
+      commitSpinner.stop(t("gitDone"));
       await clearCheckpoint();
 
-      p.outro(`${color.green("¡Lanzamiento completado!")} Versiones generadas correctamente.`);
+      p.outro(color.green(t("releaseDone")));
 
     } catch (err: any) {
       p.log.error(err.message);
-      p.outro("Error occurred.");
+      p.outro(t("errorOccurred"));
     }
   });
