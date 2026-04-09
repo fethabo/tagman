@@ -4,6 +4,7 @@ export const packageJsonSchema = z.object({
   name: z.string(),
   version: z.string(),
   private: z.boolean().optional(),
+  workspaces: z.array(z.string()).optional(),
   dependencies: z.record(z.string(), z.string()).optional(),
   devDependencies: z.record(z.string(), z.string()).optional(),
   peerDependencies: z.record(z.string(), z.string()).optional(),

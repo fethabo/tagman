@@ -28,3 +28,10 @@
 
 * **fix:** quitadas refrencias, colocado href inline [@fethabo](https://github.com/fethabo) ([4aca4d1](https://github.com/fethabo/tagman/commit/4aca4d11dffd3194193e237c20329d7675b2aeec))
 * **chore:** removidos archivos logs de seguimiento, update gitignore [@fethabo](https://github.com/fethabo) ([d9f4f82](https://github.com/fethabo/tagman/commit/d9f4f82ec06dad07838598e6cde5af4c2f236db9))
+
+## [1.1.0](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.0.4...@fethabo/tagman@1.1.0) (2026-03-25)
+
+* **doc:**update roadmap [@fethabo](https://github.com/fethabo) ([8813530](https://github.com/fethabo/tagman/commit/881353077cb7dbcd0d1226f953c5dad9c605464c))
+* **fix:** corregidos select/deselect. ref ([#2](https://github.com/fethabo/tagman/issues/2)). actualizado readme [@fethabo](https://github.com/fethabo) ([1815902](https://github.com/fethabo/tagman/commit/1815902cc97f51bfc1c69603de38328ac1be0b42))
+* **refactor:** use required:true and remove redundant empty-check per review [@copilot-swe-agent[bot]](https://github.com/copilot-swe-agent[bot]) ([3359b63](https://github.com/fethabo/tagman/commit/3359b6344108295752980cf4dd58c5e218941b3f))
+* **feat:** add Select All / Deselect All to step 2 commit selector [@copilot-swe-agent[bot]](https://github.com/copilot-swe-agent[bot]) ([8ce0136](https://github.com/fethabo/tagman/commit/8ce013635b4cf41a35a5e967a6047bd8b999e508))

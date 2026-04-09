@@ -4,12 +4,20 @@
 
 > *You are tagman, transform commits on multipackages monorepo to descriptive and normalize tags on your github repo.*
 
+
+
 [English](#english) | [Español](#español)
 
 ---
 
 <a name="english"></a>
 ## 🇬🇧 English
+
+## 🤖 A Note on Project Origins
+
+***tagman was conceived and developed primarily through agentic programming flows. I leveraged supervised AI agents to materialize a solution to a recurring need I encountered across multiple projects—one that conventional release tools failed to address satisfactorily. I'm aware that workflows vary drastically between teams and that creating a universally flexible tool is a monumental challenge. However, as part of my professional growth and my commitment to the future of software development, my goal is to iterate on tagman until it achieves that flexibility.***
+
+***P.S.: And yes, this readme was also written by an agent.***
 
 **tagman** is an interactive, developer-first CLI tool built in TypeScript. It empowers you to granularly manage versioning and tagging within monorepos (currently heavily optimized for `pnpm` workspaces). 
 
@@ -49,16 +57,47 @@ Once the wizard completes, don't forget to push your new commits and tags to you
 git push --follow-tags
 ```
 
-### Roadmap 🗺️
-- [ ] **Cross-Workspace Support**: Expand compatibility to `npm`, `yarn`, and `bun` workspaces.
-- [x] **Single Package Support**: Allow running `tagman` in standard, non-monorepo repositories.
-- [ ] **NPM Publishing**: Native support to push the bumped packages directly to the npm registry.
-- [ ] **GitHub Releases**: Automatically draft and publish comprehensive GitHub Releases using the generated Git tags.
+### 🗺️ Roadmap
+This project is constantly evolving. The following milestones mark the technical direction of tagman:
+
+#### 📦 Phase 1: Compatibility & Scope (Core)
+[ ] Multi-workspace Support: Extend current pnpm compatibility to npm, yarn, and bun environments.
+
+[x] Single Package Mode: Enable execution in standard repositories without monorepo structures.
+
+[ ] Plugin Architecture: Allow custom versioning logic for different workflows.
+
+#### 🚀 Phase 2: Automation & Ecosystem
+[ ] NPM Publishing: Native support for publishing packages directly to the npm registry after tagging.
+
+[ ] GitHub Releases: Automate the creation of releases on GitHub using the official API and tag information.
+
+[x] CHANGELOG.md Generator: Option to persist change history in a physical file in addition to tag metadata.
+
+🌍 Phase 3: User Experience & i18n
+[ ] Multi-language Support: Implement an internationalization (i18n) system for CLI messages.
+
+[ ] Hot-swappable Language: Allow language switching at runtime via flags (e.g., tagman --lang en).
+
+[ ] UI Refinement: Optimize @clack/prompts interactive interfaces for better readability.
+
+🤖 Phase 4: Agentic Optimization (AI-Ready)
+[ ] JSON Mode (--json): Structured data output so an AI agent can process command results without text parsing.
+
+[ ] Headless Mode: Non-interactive execution via parameters to facilitate automation in scripts and agentic flows.
+
+[ ] Simulation (--dry-run): Preview all changes (tags, versions, files) without executing real actions on the filesystem or Git.
 
 ---
 
 <a name="español"></a>
 ## 🇪🇸 Español
+
+## 🤖 Nota sobre el origen del proyecto
+
+***tagman fue concebido y desarrollado principalmente a través de flujos de programación agéntica. Utilicé agentes de IA supervisados para materializar una solución a una necesidad recurrente que encontré en múltiples proyectos y que las herramientas de release convencionales no lograban cubrir de forma satisfactoria. Soy consciente de que los flujos de trabajo varían drásticamente entre equipos y que crear una herramienta universalmente flexible es un desafío monumental. Sin embargo, como parte de mi crecimiento profesional y mi apuesta por el futuro del desarrollo de software, mi objetivo es iterar tagman hasta alcanzar esa flexibilidad***
+
+***PD: Y sí, este readme tambien lo escribió un agente***
 
 **tagman** es una herramienta CLI interactiva construida en TypeScript, centrada en el desarrollador. Te otorga el poder de gestionar el versionado y el etiquetado (tagging) de forma granular dentro de monorepos (actualmente optimizado para workspaces de `pnpm`).
 
@@ -97,9 +136,34 @@ Una vez que el wizard termine, no olvides hacer *push* de tus nuevos commits y t
 ```bash
 git push --follow-tags
 ```
+### 🗺️ Hoja de Ruta (Roadmap)
+Este proyecto está en constante evolución. Los siguientes hitos marcan la dirección técnica de tagman:
 
-### Hoja de Ruta (Roadmap) 🗺️
-- [ ] **Soporte multi-workspace**: Extender la compatibilidad a workspaces de `npm`, `yarn` y `bun`.
-- [x] **Soporte para Single Package**: Permitir la ejecución de `tagman` en repositorios estándar que no sean monorepos.
-- [ ] **Publicaciones en NPM**: Soporte nativo para publicar directamente los paquetes en el registro de npm.
-- [ ] **GitHub Releases**: Automatizar la creación y publicación de GitHub Releases utilizando la información de los tags generados.
+#### 📦 Fase 1: Compatibilidad y Alcance (Core)
+[ ] Soporte multi-workspace: Extender la compatibilidad actual de pnpm a entornos de npm, yarn y bun.
+
+[x] Modo Single Package: Permitir la ejecución en repositorios estándar que no utilicen estructuras de monorepo.
+
+[ ] Arquitectura de Plugins: Permitir lógica de versionado personalizada para diferentes flujos de trabajo.
+
+#### 🚀 Fase 2: Automatización y Ecosistema
+[ ] Publicación en NPM: Soporte nativo para publicar paquetes directamente en el registro de npm tras el tagging.
+
+[ ] GitHub Releases: Automatizar la creación de lanzamientos en GitHub utilizando la API oficial y la información de los tags.
+
+[x] Generador de CHANGELOG.md: Opción para persistir el historial de cambios en un archivo físico además de en los metadatos del tag.
+
+🌍 Fase 3: Experiencia de Usuario e i18n
+[ ] Soporte Multiidioma: Implementar un sistema de internacionalización (i18n) para los mensajes del CLI.
+
+[ ] Hot-swapping de Idioma: Permitir el cambio de idioma en tiempo de ejecución mediante flags (ej. tagman --lang en).
+
+[ ] Refinamiento de UI: Optimizar las interfaces interactivas de @clack/prompts para una mejor legibilidad.
+
+🤖 Fase 4: Optimización Agéntica (IA-Ready)
+[ ] Modo JSON (--json): Salida de datos estructurada para que un agente de IA pueda procesar el resultado del comando sin parsing de texto.
+
+[ ] Modo Headless: Ejecución no interactiva mediante parámetros para facilitar la automatización en scripts y flujos agénticos.
+
+[ ] Simulación (--dry-run): Permitir previsualizar todos los cambios (tags, versiones, archivos) sin ejecutar acciones reales en el sistema de archivos o Git.
+
