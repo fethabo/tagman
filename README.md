@@ -52,9 +52,29 @@ pnpm tagman release
 
 Follow the on-screen steps to select packages, apply bumps, verify cascade dependencies, and generate your annotated Git tags.
 
-Once the wizard completes, don't forget to push your new commits and tags to your remote repository:
+Once the wizard completes, tagman will offer to push your commits and tags to the remote repository automatically.
+
+### CLI Flags
+
 ```bash
-git push --follow-tags
+tagman release [options]
+
+  --dry-run            Preview all version/tag changes without writing anything
+  --json               Output a structured JSON result to stdout at the end
+  --packages <names>   Comma-separated package names to release (skips selection prompt)
+  --bump <type>        Global bump type: patch | minor | major (skips bump prompt)
+  --yes                Skip all confirmations and auto-accept cascade versioning
+  --push               Push commits and tags to remote without asking
+```
+
+**Fully headless** (zero prompts):
+```bash
+tagman release --packages my-lib,my-app --bump patch --yes --push
+```
+
+**Preview only:**
+```bash
+tagman release --dry-run
 ```
 
 ### 🗺️ Roadmap
@@ -74,19 +94,19 @@ This project is constantly evolving. The following milestones mark the technical
 
 [x] CHANGELOG.md Generator: Option to persist change history in a physical file in addition to tag metadata.
 
-🌍 Phase 3: User Experience & i18n
+#### 🌍 Phase 3: User Experience & i18n
 [ ] Multi-language Support: Implement an internationalization (i18n) system for CLI messages.
 
 [ ] Hot-swappable Language: Allow language switching at runtime via flags (e.g., tagman --lang en).
 
 [ ] UI Refinement: Optimize @clack/prompts interactive interfaces for better readability.
 
-🤖 Phase 4: Agentic Optimization (AI-Ready)
-[ ] JSON Mode (--json): Structured data output so an AI agent can process command results without text parsing.
+#### 🤖 Phase 4: Agentic Optimization (AI-Ready)
+[x] JSON Mode (--json): Structured data output so an AI agent can process command results without text parsing.
 
-[ ] Headless Mode: Non-interactive execution via parameters to facilitate automation in scripts and agentic flows.
+[x] Headless Mode: Non-interactive execution via `--packages`, `--bump`, `--yes`, and `--push` flags to facilitate automation in scripts and agentic flows.
 
-[ ] Simulation (--dry-run): Preview all changes (tags, versions, files) without executing real actions on the filesystem or Git.
+[x] Simulation (--dry-run): Preview all changes (tags, versions) without executing real actions on the filesystem or Git.
 
 ---
 
@@ -132,10 +152,31 @@ pnpm tagman release
 
 Sigue los pasos en pantalla para seleccionar los paquetes, aplicar los incrementos de versión, verificar las dependencias en cascada y generar tus tags anotados de Git.
 
-Una vez que el wizard termine, no olvides hacer *push* de tus nuevos commits y tags a tu repositorio remoto:
+Una vez que el wizard termine, tagman ofrecerá hacer *push* de tus commits y tags al repositorio remoto automáticamente.
+
+### Flags de CLI
+
 ```bash
-git push --follow-tags
+tagman release [opciones]
+
+  --dry-run            Previsualiza versiones y tags sin escribir nada
+  --json               Emite un JSON estructurado al finalizar (útil para scripts y agentes)
+  --packages <names>   Paquetes a lanzar separados por coma (omite el prompt de selección)
+  --bump <type>        Tipo de bump global: patch | minor | major (omite el prompt de bump)
+  --yes                Omite todas las confirmaciones y acepta cascada automáticamente
+  --push               Hace push al remoto sin preguntar
 ```
+
+**Modo completamente headless** (sin ningún prompt):
+```bash
+tagman release --packages my-lib,my-app --bump patch --yes --push
+```
+
+**Solo previsualizar:**
+```bash
+tagman release --dry-run
+```
+
 ### 🗺️ Hoja de Ruta (Roadmap)
 Este proyecto está en constante evolución. Los siguientes hitos marcan la dirección técnica de tagman:
 
@@ -153,17 +194,17 @@ Este proyecto está en constante evolución. Los siguientes hitos marcan la dire
 
 [x] Generador de CHANGELOG.md: Opción para persistir el historial de cambios en un archivo físico además de en los metadatos del tag.
 
-🌍 Fase 3: Experiencia de Usuario e i18n
+#### 🌍 Fase 3: Experiencia de Usuario e i18n
 [ ] Soporte Multiidioma: Implementar un sistema de internacionalización (i18n) para los mensajes del CLI.
 
 [ ] Hot-swapping de Idioma: Permitir el cambio de idioma en tiempo de ejecución mediante flags (ej. tagman --lang en).
 
 [ ] Refinamiento de UI: Optimizar las interfaces interactivas de @clack/prompts para una mejor legibilidad.
 
-🤖 Fase 4: Optimización Agéntica (IA-Ready)
-[ ] Modo JSON (--json): Salida de datos estructurada para que un agente de IA pueda procesar el resultado del comando sin parsing de texto.
+#### 🤖 Fase 4: Optimización Agéntica (IA-Ready)
+[x] Modo JSON (--json): Salida de datos estructurada para que un agente de IA pueda procesar el resultado del comando sin parsing de texto.
 
-[ ] Modo Headless: Ejecución no interactiva mediante parámetros para facilitar la automatización en scripts y flujos agénticos.
+[x] Modo Headless: Ejecución no interactiva mediante los flags `--packages`, `--bump`, `--yes` y `--push` para facilitar la automatización en scripts y flujos agénticos.
 
-[ ] Simulación (--dry-run): Permitir previsualizar todos los cambios (tags, versiones, archivos) sin ejecutar acciones reales en el sistema de archivos o Git.
+[x] Simulación (--dry-run): Previsualizar todos los cambios (tags, versiones) sin ejecutar acciones reales en el sistema de archivos o Git.
 
