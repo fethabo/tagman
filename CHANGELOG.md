@@ -35,3 +35,10 @@
 * **fix:** corregidos select/deselect. ref ([#2](https://github.com/fethabo/tagman/issues/2)). actualizado readme [@fethabo](https://github.com/fethabo) ([1815902](https://github.com/fethabo/tagman/commit/1815902cc97f51bfc1c69603de38328ac1be0b42))
 * **refactor:** use required:true and remove redundant empty-check per review [@copilot-swe-agent[bot]](https://github.com/copilot-swe-agent[bot]) ([3359b63](https://github.com/fethabo/tagman/commit/3359b6344108295752980cf4dd58c5e218941b3f))
 * **feat:** add Select All / Deselect All to step 2 commit selector [@copilot-swe-agent[bot]](https://github.com/copilot-swe-agent[bot]) ([8ce0136](https://github.com/fethabo/tagman/commit/8ce013635b4cf41a35a5e967a6047bd8b999e508))
+
+## [1.2.0](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.1.0...@fethabo/tagman@1.2.0) (2026-04-09)
+
+* **fix:** agregada dependencia de @clack/core @fethabo 8d2bfa0
+* **feat:** implementar P0 bugfixes y Phase 4 agentic optimization @fethabo a320024
+* **refactor:** se separa wizard en multiples archivos. closes #5 @fethabo c261bee
+* **feat:** agregado soporte para archivo de configuracion. ref #1 @fethabo aa4554c
