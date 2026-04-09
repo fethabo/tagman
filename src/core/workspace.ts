@@ -71,7 +71,11 @@ export async function getWorkspacePackages(rootDir: string = process.cwd(), conf
     return [{ dir: rootDir, manifest: rootManifest }];
   }
 
-  return resolvePackagesFromGlobs(rootDir, rootManifest.workspaces);
+  const packages = await resolvePackagesFromGlobs(rootDir, rootManifest.workspaces);
+  if (packages.length === 0) {
+    console.warn(`[tagman] No se encontraron paquetes con los globs del workspace ${workspaceType}. Verificá el campo "workspaces" en package.json.`);
+  }
+  return packages;
 }
 
 export function getDependents(pkgName: string, allPackages: WorkspacePackage[]): WorkspacePackage[] {

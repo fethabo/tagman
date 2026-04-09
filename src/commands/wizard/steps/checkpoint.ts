@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
-import { hasUncommittedChanges } from "../../../git/index.js";
+import { hasUncommittedChanges, deleteLocalTag, resetLastCommit, git } from "../../../git/index.js";
 import { loadCheckpoint, clearCheckpoint, type ReleaseState } from "../../../core/checkpoint.js";
 import { getWorkspacePackages, getDependents } from "../../../core/workspace.js";
 import {
@@ -74,6 +74,28 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
             }
           } catch {
             // Ignore errors as files could be locally modified
+          }
+        }
+
+        // Si el checkpoint es "committing", el commit de git pudo haberse creado
+        if (checkpoint.step === "committing") {
+          try {
+            // Verificar que el último commit sea el de tagman antes de resetearlo
+            const log = await git.log(["-1"]);
+            const pkgsArray = Array.from(rbState.keys());
+            const expectedMsg = `chore(release): [${pkgsArray.join(", ")}]`;
+            if (log.latest?.message === expectedMsg) {
+              await resetLastCommit();
+            }
+            // Eliminar tags que pudieron haberse creado parcialmente
+            for (const [pkgName, details] of rbState.entries()) {
+              const tagName = config.tagName === "version-only"
+                ? details.newVersion
+                : `${pkgName}@${details.newVersion}`;
+              try { await deleteLocalTag(tagName); } catch { /* el tag puede no existir */ }
+            }
+          } catch {
+            p.log.warn("No se pudo revertir el commit de git. Verificá manualmente con git log.");
           }
         }
 

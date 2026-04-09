@@ -187,14 +187,27 @@ Add `"your-phase"` to the `Checkpoint["step"]` union in `src/core/checkpoint.ts`
 
 ---
 
-## Phase 4 Roadmap (Planned — Not Yet Implemented)
+## Phase 4 — Agentic Optimization (Implemented)
 
-The following features are planned for "Agentic Optimization":
+All Phase 4 flags are live on the `release` command:
 
-- `--json` flag: Structured JSON output on stdout for programmatic/AI agent consumption
-- **Headless mode**: Accept all wizard inputs as CLI parameters (fully non-interactive)
-- `--dry-run` flag: Preview all changes (versions, tags, CHANGELOG entries) without writing
+```bash
+tagman release --dry-run                          # Preview changes, no writes
+tagman release --json                             # Output JSON result to stdout
+tagman release --packages pkg-a,pkg-b --bump patch --yes  # Fully headless
+tagman release --push                             # Auto-push after release
+```
 
-Implementation entry points:
-- `src/index.ts` — add Commander flags
-- `src/commands/wizard/index.ts` — add non-interactive branch that reads from a params object instead of calling `@clack/prompts`
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Show version/tag preview without executing anything |
+| `--json` | Print structured JSON result at end instead of UI message |
+| `--packages <names>` | Comma-separated package names (skips package selection prompt) |
+| `--bump <type>` | Global bump type: `patch`, `minor`, or `major` (skips bump prompt) |
+| `--yes` | Skip all confirmations and auto-accept cascade versioning |
+| `--push` | Push commits and tags to remote without asking |
+
+**Fully headless** (zero prompts): combine `--packages`, `--bump`, and `--yes`.
+**JSON output shape:** `{ success: true, packages: [{ name, previousVersion, newVersion, tag }] }`
+
+Entry points: `src/commands/wizard/index.ts` (flags), `src/commands/wizard/steps/scan-and-select.ts` (headless branch), `src/commands/wizard/steps/execute.ts` (dry-run / json / push).

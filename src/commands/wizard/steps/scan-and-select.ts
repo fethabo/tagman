@@ -15,10 +15,18 @@ export type PackageInfo = {
   lastTag: string | null;
 };
 
+export type ScanOptions = {
+  packages?: string;
+  bump?: "patch" | "minor" | "major";
+  yes?: boolean;
+};
+
 export async function scanAndSelectPackages(
   allPackages: WorkspacePackage[],
-  config: TagmanConfig
+  config: TagmanConfig,
+  options: ScanOptions = {}
 ): Promise<Map<string, ReleaseState> | null> {
+  const { packages: pkgFilter, bump: globalBump, yes = false } = options;
   const packagesWithCommits: PackageInfo[] = [];
 
   const spinner = p.spinner();
@@ -40,22 +48,35 @@ export async function scanAndSelectPackages(
   }
 
   // Step 1: Select packages
-  const selectedPkgNames = await p.multiselect({
-    message: "Step 1: Select packages to release",
-    options: packagesWithCommits.map(info => ({
-      value: info.pkg.manifest.name,
-      label: `${info.pkg.manifest.name} (${info.commits.length} commits)`,
-    })),
-    required: true,
-  });
+  let selectedNames: string[];
+  if (pkgFilter) {
+    const requested = pkgFilter.split(",").map(s => s.trim()).filter(Boolean);
+    selectedNames = packagesWithCommits
+      .map(info => info.pkg.manifest.name)
+      .filter(name => requested.includes(name));
+    if (selectedNames.length === 0) {
+      p.log.error(`Ninguno de los paquetes indicados (${pkgFilter}) tiene commits pendientes.`);
+      return null;
+    }
+  } else {
+    const result = await p.multiselect({
+      message: "Step 1: Select packages to release",
+      options: packagesWithCommits.map(info => ({
+        value: info.pkg.manifest.name,
+        label: `${info.pkg.manifest.name} (${info.commits.length} commits)`,
+      })),
+      required: true,
+    });
 
-  if (p.isCancel(selectedPkgNames)) {
-    p.cancel("Operation cancelled.");
-    return null;
+    if (p.isCancel(result)) {
+      p.cancel("Operation cancelled.");
+      return null;
+    }
+    selectedNames = result as string[];
   }
 
   const state = new Map<string, ReleaseState>();
-  const queue = [...(selectedPkgNames as string[])];
+  const queue = [...selectedNames];
   const processed = new Set<string>();
 
   while (queue.length > 0) {
@@ -67,39 +88,51 @@ export async function scanAndSelectPackages(
     if (!pkgInfo) continue;
 
     // Step 2: Commits Selection
-    const selectedCommitHashes = await commitMultiSelect(
-      `Step 2: Commits for ${color.cyan(pkgName)}`,
-      pkgInfo.commits.map(c => ({ value: c.hash, label: `${c.hash.substring(0, 7)} - ${c.message}` })),
-      pkgInfo.commits.map(c => c.hash)
-    );
+    let chosenCommits: CommitInfo[];
+    if (globalBump !== undefined || yes) {
+      // Headless: seleccionar todos los commits
+      chosenCommits = pkgInfo.commits;
+    } else {
+      const selectedCommitHashes = await commitMultiSelect(
+        `Step 2: Commits for ${color.cyan(pkgName)}`,
+        pkgInfo.commits.map(c => ({ value: c.hash, label: `${c.hash.substring(0, 7)} - ${c.message}` })),
+        pkgInfo.commits.map(c => c.hash)
+      );
 
-    if (p.isCancel(selectedCommitHashes)) {
-      p.cancel("Operation cancelled.");
-      return null;
+      if (p.isCancel(selectedCommitHashes)) {
+        p.cancel("Operation cancelled.");
+        return null;
+      }
+
+      chosenCommits = pkgInfo.commits.filter(c =>
+        (selectedCommitHashes as string[]).includes(c.hash)
+      );
     }
-
-    const chosenCommits = pkgInfo.commits.filter(c =>
-      (selectedCommitHashes as string[]).includes(c.hash)
-    );
 
     // Step 3: Version Bump
     const suggested = suggestBump(chosenCommits.map(c => c.message));
 
-    const bump = await p.select({
-      message: `Step 3: Version increment for ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
-      options: [
-        { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? "suggested" : undefined },
-        { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? "suggested" : undefined },
-        { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? "suggested" : undefined },
-        { value: "none", label: `No incrementar (solo Git Tag: ${pkgInfo.pkg.manifest.version})` },
-        { value: "custom", label: `Definir una versión específica...` },
-      ],
-      initialValue: suggested,
-    });
+    let bump: string;
+    if (globalBump) {
+      bump = globalBump;
+    } else {
+      const result = await p.select({
+        message: `Step 3: Version increment for ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
+        options: [
+          { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? "suggested" : undefined },
+          { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? "suggested" : undefined },
+          { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? "suggested" : undefined },
+          { value: "none", label: `No incrementar (solo Git Tag: ${pkgInfo.pkg.manifest.version})` },
+          { value: "custom", label: `Definir una versión específica...` },
+        ],
+        initialValue: suggested,
+      });
 
-    if (p.isCancel(bump)) {
-      p.cancel("Operation cancelled.");
-      return null;
+      if (p.isCancel(result)) {
+        p.cancel("Operation cancelled.");
+        return null;
+      }
+      bump = result as string;
     }
 
     let newVersion: string;
@@ -124,14 +157,20 @@ export async function scanAndSelectPackages(
     // Step 4: Cascade analysis
     const dependents = getDependents(pkgName, allPackages);
     for (const dep of dependents) {
-      const cascade = await p.confirm({
-        message: `Aviso: ${color.cyan(pkgName)} es dependencia de ${color.yellow(dep.manifest.name)}. ¿Deseas versionar también ${color.yellow(dep.manifest.name)} para actualizar su referencia?`,
-        initialValue: true,
-      });
+      let cascade: boolean;
+      if (yes) {
+        cascade = true;
+      } else {
+        const result = await p.confirm({
+          message: `Aviso: ${color.cyan(pkgName)} es dependencia de ${color.yellow(dep.manifest.name)}. ¿Deseas versionar también ${color.yellow(dep.manifest.name)} para actualizar su referencia?`,
+          initialValue: true,
+        });
 
-      if (p.isCancel(cascade)) {
-        p.cancel("Operation cancelled.");
-        return null;
+        if (p.isCancel(result)) {
+          p.cancel("Operation cancelled.");
+          return null;
+        }
+        cascade = result;
       }
 
       if (cascade) {
