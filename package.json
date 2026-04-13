@@ -1,9 +1,10 @@
 {
   "name": "@fethabo/tagman",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "dependencies": {
     "@clack/core": "^1.1.0",
     "@clack/prompts": "^1.1.0",
+    "@octokit/rest": "^22.0.1",
     "commander": "^14.0.3",
     "conventional-commits-parser": "^6.3.0",
     "fast-glob": "^3.3.3",

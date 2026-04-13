@@ -42,3 +42,7 @@
 * **feat:** implementar P0 bugfixes y Phase 4 agentic optimization @fethabo a320024
 * **refactor:** se separa wizard en multiples archivos. closes #5 @fethabo c261bee
 * **feat:** agregado soporte para archivo de configuracion. ref #1 @fethabo aa4554c
+
+## [1.2.1](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.2.0...@fethabo/tagman@1.2.1) (2026-04-13)
+
+* **feat:** implement GitHub releases, NPM publishing, plugin system, and i18n @fethabo e36cbe2
