@@ -8,6 +8,16 @@ export const tagmanConfigSchema = z.object({
   packagesRoutes: z.array(z.string()).optional(),
   workspace: z.enum(["pnpm", "npm", "yarn", "bun"]).default("pnpm"),
   annotationMessage: z.string().optional(),
+  github: z.object({
+    createRelease: z.boolean().default(false),
+    token: z.string().optional(),
+    prerelease: z.boolean().default(false),
+  }).optional(),
+  npm: z.object({
+    publish: z.boolean().default(false),
+    access: z.enum(["public", "restricted"]).default("public"),
+  }).optional(),
+  plugins: z.array(z.string()).optional(),
 }).strict();
 
 export type TagmanConfig = z.infer<typeof tagmanConfigSchema>;

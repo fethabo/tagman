@@ -7,6 +7,7 @@ import { handleCheckpoint } from "./steps/checkpoint.js";
 import { scanAndSelectPackages } from "./steps/scan-and-select.js";
 import { promptTagMessages } from "./steps/tag-messages.js";
 import { executeRelease } from "./steps/execute.js";
+import { setLocale, t, type Locale } from "../../i18n/index.js";
 
 export type WizardOptions = {
   dryRun: boolean;
@@ -25,7 +26,12 @@ export const wizardCommand = new Command("release")
   .option("--bump <type>", "Global bump type for all packages: patch | minor | major (skips bump prompt)")
   .option("--push", "Push commits and tags to remote without asking", false)
   .option("--yes", "Skip all confirmations (assume yes)", false)
-  .action(async (options: WizardOptions) => {
+  .option("--lang <lang>", "Interface language: es | en", "es")
+  .action(async (options: WizardOptions & { lang: string }) => {
+    if (["es", "en"].includes(options.lang)) {
+      setLocale(options.lang as Locale);
+    }
+
     console.clear();
     p.intro(`${color.bgCyan(color.black(" tagman "))} Releaser`);
 
@@ -39,8 +45,8 @@ export const wizardCommand = new Command("release")
 
       const allPackages = await getWorkspacePackages(process.cwd(), config);
       if (allPackages.length === 0) {
-        p.log.warn("No valid packages found in this project.");
-        p.outro("Bye!");
+        p.log.warn(t().wizard.noPackages);
+        p.outro(t().wizard.bye);
         return;
       }
 
@@ -67,6 +73,6 @@ export const wizardCommand = new Command("release")
       });
     } catch (err: any) {
       p.log.error(err.message);
-      p.outro("Error occurred.");
+      p.outro(t().wizard.error);
     }
   });

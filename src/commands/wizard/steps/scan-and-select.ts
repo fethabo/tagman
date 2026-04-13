@@ -8,6 +8,7 @@ import { getDependents, type WorkspacePackage } from "../../../core/workspace.js
 import type { ReleaseState } from "../../../core/checkpoint.js";
 import type { TagmanConfig } from "../../../config.js";
 import { commitMultiSelect } from "../commit-multiselect.js";
+import { t } from "../../../i18n/index.js";
 
 export type PackageInfo = {
   pkg: WorkspacePackage;
@@ -30,7 +31,7 @@ export async function scanAndSelectPackages(
   const packagesWithCommits: PackageInfo[] = [];
 
   const spinner = p.spinner();
-  spinner.start("Scanning packages for new commits...");
+  spinner.start(t().scan.scanning);
 
   for (const pkg of allPackages) {
     const lastTag = await getLastTagForPackage(pkg.manifest.name);
@@ -40,10 +41,10 @@ export async function scanAndSelectPackages(
     }
   }
 
-  spinner.stop(`Scanned ${allPackages.length} packages. Found ${packagesWithCommits.length} with pending changes.`);
+  spinner.stop(t().scan.scanDone(allPackages.length, packagesWithCommits.length));
 
   if (packagesWithCommits.length === 0) {
-    p.outro("No new commits found in any package. Nothing to release.");
+    p.outro(t().scan.nothingToRelease);
     return null;
   }
 
@@ -55,12 +56,12 @@ export async function scanAndSelectPackages(
       .map(info => info.pkg.manifest.name)
       .filter(name => requested.includes(name));
     if (selectedNames.length === 0) {
-      p.log.error(`Ninguno de los paquetes indicados (${pkgFilter}) tiene commits pendientes.`);
+      p.log.error(t().scan.noMatchingPackages(pkgFilter));
       return null;
     }
   } else {
     const result = await p.multiselect({
-      message: "Step 1: Select packages to release",
+      message: t().scan.selectPackages,
       options: packagesWithCommits.map(info => ({
         value: info.pkg.manifest.name,
         label: `${info.pkg.manifest.name} (${info.commits.length} commits)`,
@@ -69,7 +70,7 @@ export async function scanAndSelectPackages(
     });
 
     if (p.isCancel(result)) {
-      p.cancel("Operation cancelled.");
+      p.cancel(t().scan.cancelled);
       return null;
     }
     selectedNames = result as string[];
@@ -94,13 +95,13 @@ export async function scanAndSelectPackages(
       chosenCommits = pkgInfo.commits;
     } else {
       const selectedCommitHashes = await commitMultiSelect(
-        `Step 2: Commits for ${color.cyan(pkgName)}`,
+        `${t().scan.selectCommits(pkgName)} ${color.cyan(pkgName)}`,
         pkgInfo.commits.map(c => ({ value: c.hash, label: `${c.hash.substring(0, 7)} - ${c.message}` })),
         pkgInfo.commits.map(c => c.hash)
       );
 
       if (p.isCancel(selectedCommitHashes)) {
-        p.cancel("Operation cancelled.");
+        p.cancel(t().scan.cancelled);
         return null;
       }
 
@@ -117,7 +118,7 @@ export async function scanAndSelectPackages(
       bump = globalBump;
     } else {
       const result = await p.select({
-        message: `Step 3: Version increment for ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
+        message: `${t().scan.selectBump(pkgName, pkgInfo.pkg.manifest.version)} ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
         options: [
           { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? "suggested" : undefined },
           { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? "suggested" : undefined },
@@ -129,7 +130,7 @@ export async function scanAndSelectPackages(
       });
 
       if (p.isCancel(result)) {
-        p.cancel("Operation cancelled.");
+        p.cancel(t().scan.cancelled);
         return null;
       }
       bump = result as string;
@@ -140,13 +141,13 @@ export async function scanAndSelectPackages(
       newVersion = pkgInfo.pkg.manifest.version;
     } else if (bump === "custom") {
       const customV = await p.text({
-        message: `Escribe la nueva versión exacta (SemVer) para ${pkgName}:`,
+        message: t().scan.customVersion(pkgName),
         validate: (val) => {
-          if (!semver.valid(val)) return "Error: debe ser una versión SemVer válida (ej: 1.2.3)";
+          if (!semver.valid(val)) return t().scan.customVersionError;
         },
       });
       if (p.isCancel(customV)) {
-        p.cancel("Operation cancelled.");
+        p.cancel(t().scan.cancelled);
         return null;
       }
       newVersion = semver.clean(customV as string)!;
@@ -162,12 +163,12 @@ export async function scanAndSelectPackages(
         cascade = true;
       } else {
         const result = await p.confirm({
-          message: `Aviso: ${color.cyan(pkgName)} es dependencia de ${color.yellow(dep.manifest.name)}. ¿Deseas versionar también ${color.yellow(dep.manifest.name)} para actualizar su referencia?`,
+          message: t().scan.cascadeQuestion(color.cyan(pkgName), color.yellow(dep.manifest.name)),
           initialValue: true,
         });
 
         if (p.isCancel(result)) {
-          p.cancel("Operation cancelled.");
+          p.cancel(t().scan.cancelled);
           return null;
         }
         cascade = result;

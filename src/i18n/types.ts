@@ -1,0 +1,76 @@
+export type Messages = {
+  wizard: {
+    noPackages: string;
+    bye: string;
+    error: string;
+  };
+  checkpoint: {
+    uncommittedWarning: string;
+    uncommittedQuestion: string;
+    interruptedRelease: (step: string) => string;
+    resumeQuestion: string;
+    rollbackQuestion: string;
+    rollingBack: string;
+    rollbackDone: string;
+    rollbackGitWarn: string;
+    cancelled: string;
+  };
+  scan: {
+    scanning: string;
+    scanDone: (total: number, found: number) => string;
+    nothingToRelease: string;
+    selectPackages: string;
+    noMatchingPackages: (filter: string) => string;
+    selectCommits: (pkg: string) => string;
+    selectBump: (pkg: string, current: string) => string;
+    customVersion: (pkg: string) => string;
+    customVersionError: string;
+    cascadeQuestion: (dep: string, consumer: string) => string;
+    cancelled: string;
+  };
+  tagMessages: {
+    createTagQuestion: (pkg: string, version: string) => string;
+    autoGenLabel: string;
+    actionSelect: string;
+    useAuto: string;
+    appendText: string;
+    writeCustom: string;
+    appendInput: string;
+    insertPosition: string;
+    insertBefore: string;
+    insertAfter: string;
+    customInput: string;
+    cancelled: string;
+  };
+  execute: {
+    confirmProceed: string;
+    cancelled: string;
+    writing: string;
+    writingError: string;
+    writingDone: string;
+    committing: string;
+    commitDone: string;
+    tagsSpinnerError: string;
+    pushSpinnerError: string;
+    tagsError: (msg: string) => string;
+    reverting: string;
+    revertedGit: string;
+    pushQuestion: string;
+    pushing: string;
+    pushDone: string;
+    pushError: (msg: string) => string;
+    pushFallback: string;
+    githubCreating: string;
+    githubDone: (count: number) => string;
+    githubNoToken: string;
+    githubNoRemote: string;
+    githubFailed: (pkg: string, msg: string) => string;
+    npmPublishing: string;
+    npmDone: string;
+    npmPublished: (pkg: string, version: string) => string;
+    npmFailed: (pkg: string, msg: string) => string;
+    done: string;
+    dryRunHeader: string;
+    dryRunDone: string;
+  };
+};

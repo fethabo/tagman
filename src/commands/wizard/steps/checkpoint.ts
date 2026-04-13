@@ -1,6 +1,7 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import { hasUncommittedChanges, deleteLocalTag, resetLastCommit, git } from "../../../git/index.js";
+import { t } from "../../../i18n/index.js";
 import { loadCheckpoint, clearCheckpoint, type ReleaseState } from "../../../core/checkpoint.js";
 import { getWorkspacePackages, getDependents } from "../../../core/workspace.js";
 import {
@@ -19,11 +20,11 @@ export type CheckpointResult = {
 export async function handleCheckpoint(config: TagmanConfig): Promise<CheckpointResult | null> {
   if (await hasUncommittedChanges()) {
     const proceed = await p.confirm({
-      message: `${color.yellow("Advertencia:")} Tienes cambios locales sin commitear. ¿Deseas continuar de todas formas?`,
+      message: `${color.yellow(t().checkpoint.uncommittedWarning)} ${t().checkpoint.uncommittedQuestion}`,
       initialValue: false,
     });
     if (p.isCancel(proceed) || !proceed) {
-      p.cancel("Operación cancelada.");
+      p.cancel(t().checkpoint.cancelled);
       return null;
     }
   }
@@ -35,12 +36,12 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
   const checkpoint = await loadCheckpoint();
   if (checkpoint) {
     const resume = await p.confirm({
-      message: `Se encontró un lanzamiento interrumpido en la fase "${checkpoint.step}". ¿Deseas retomarlo?`,
+      message: t().checkpoint.interruptedRelease(checkpoint.step),
       initialValue: true,
     });
 
     if (p.isCancel(resume)) {
-      p.cancel("Operación cancelada.");
+      p.cancel(t().checkpoint.cancelled);
       return null;
     }
 
@@ -50,13 +51,13 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
       recoveredStep = checkpoint.step;
     } else {
       const doRollback = await p.confirm({
-        message: "¿Deseas revertir los cambios locales en package.json y CHANGELOG.md que tagman alcanzó a hacer?",
+        message: t().checkpoint.rollbackQuestion,
         initialValue: true,
       });
 
       if (!p.isCancel(doRollback) && doRollback) {
         const rbSpinner = p.spinner();
-        rbSpinner.start("Revirtiendo archivos al estado pre-release...");
+        rbSpinner.start(t().checkpoint.rollingBack);
 
         const currentWorkspace = await getWorkspacePackages(process.cwd(), config);
         const rbState = new Map(checkpoint.state);
@@ -95,11 +96,11 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
               try { await deleteLocalTag(tagName); } catch { /* el tag puede no existir */ }
             }
           } catch {
-            p.log.warn("No se pudo revertir el commit de git. Verificá manualmente con git log.");
+            p.log.warn(t().checkpoint.rollbackGitWarn);
           }
         }
 
-        rbSpinner.stop("Rollback completado. Archivos revertidos adecuadamente.");
+        rbSpinner.stop(t().checkpoint.rollbackDone);
       }
 
       await clearCheckpoint();

@@ -89,3 +89,26 @@ export async function pushRelease(): Promise<void> {
   const branch = await git.branch();
   await git.push("origin", branch.current, ["--follow-tags"]);
 }
+
+/**
+ * Parse the GitHub owner and repo from the origin remote URL.
+ * Supports HTTPS (https://github.com/owner/repo.git) and SSH (git@github.com:owner/repo.git).
+ * Returns null if origin is not a GitHub remote or cannot be parsed.
+ */
+export async function getGitHubRemoteInfo(): Promise<{ owner: string; repo: string } | null> {
+  try {
+    const remotes = await git.getRemotes(true);
+    const origin = remotes.find(r => r.name === "origin");
+    const url = origin?.refs?.fetch ?? "";
+
+    const https = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/);
+    if (https) return { owner: https[1], repo: https[2] };
+
+    const ssh = url.match(/git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/);
+    if (ssh) return { owner: ssh[1], repo: ssh[2] };
+
+    return null;
+  } catch {
+    return null;
+  }
+}

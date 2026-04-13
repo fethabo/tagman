@@ -7,10 +7,14 @@ import {
   appendToChangelog,
   logRelease,
 } from "../../../core/updater.js";
-import { createReleaseCommit, createAnnotatedTag, deleteLocalTag, resetLastCommit, pushRelease } from "../../../git/index.js";
+import { createReleaseCommit, createAnnotatedTag, deleteLocalTag, resetLastCommit, pushRelease, getGitHubRemoteInfo } from "../../../git/index.js";
+import { createGithubRelease } from "../../../integrations/github.js";
+import { publishPackage } from "../../../integrations/npm.js";
+import { runAfterRelease, type ReleaseResult } from "../../../plugins/index.js";
 import { saveCheckpoint, clearCheckpoint, type ReleaseState } from "../../../core/checkpoint.js";
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
 import type { TagmanConfig } from "../../../config.js";
+import { t } from "../../../i18n/index.js";
 
 export type ExecuteOptions = {
   dryRun?: boolean;
@@ -24,12 +28,12 @@ function buildTagName(pkgName: string, newVersion: string, config: TagmanConfig)
 }
 
 function previewRelease(state: Map<string, ReleaseState>, config: TagmanConfig): void {
-  p.log.info("--- DRY RUN: cambios que se aplicarían ---");
+  p.log.info(t().execute.dryRunHeader);
   for (const [pkgName, details] of state.entries()) {
     const tagName = buildTagName(pkgName, details.newVersion, config);
     p.log.info(`  ${pkgName}: ${details.pkg.manifest.version} → ${details.newVersion}  (tag: ${tagName})`);
   }
-  p.outro("Dry run completado. No se realizaron cambios.");
+  p.outro(t().execute.dryRunDone);
 }
 
 export async function executeRelease(
@@ -50,12 +54,12 @@ export async function executeRelease(
   if (!isRecovered) {
     if (!yes) {
       const execute = await p.confirm({
-        message: "Todo listo. ¿Proceder con la escritura, commits y tags?",
+        message: t().execute.confirmProceed,
         initialValue: false,
       });
 
       if (p.isCancel(execute) || !execute) {
-        p.cancel("Revertido por el usuario.");
+        p.cancel(t().execute.cancelled);
         return;
       }
     }
@@ -64,7 +68,7 @@ export async function executeRelease(
 
   if (!isRecovered || recoveredStep === "writing") {
     const writingSpinner = p.spinner();
-    writingSpinner.start("Escribiendo cambios...");
+    writingSpinner.start(t().execute.writing);
 
     const releasedLog: Record<string, string> = {};
 
@@ -81,19 +85,19 @@ export async function executeRelease(
           }
         }
       } catch (e) {
-        writingSpinner.stop("Error actualizando archivos.");
+        writingSpinner.stop(t().execute.writingError);
         console.error(e);
         return;
       }
     }
 
     await logRelease(releasedLog);
-    writingSpinner.stop("Archivos actualizados.");
+    writingSpinner.stop(t().execute.writingDone);
     await saveCheckpoint("committing", state);
   }
 
   const commitSpinner = p.spinner();
-  commitSpinner.start("Creando git commit & tags...");
+  commitSpinner.start(t().execute.committing);
 
   const pkgsArray = Array.from(state.keys());
   const commitMsg = `chore(release): [${pkgsArray.join(", ")}]`;
@@ -117,24 +121,24 @@ export async function executeRelease(
       }
     }
   } catch (e: any) {
-    commitSpinner.stop("Error al crear tags.");
-    p.log.error(`Falló la creación de tags: ${e.message}`);
-    p.log.warn("Revirtiendo commit y tags ya creados...");
-    for (const t of createdTags) {
-      try { await deleteLocalTag(t); } catch { /* ignorar */ }
+    commitSpinner.stop(t().execute.tagsSpinnerError);
+    p.log.error(t().execute.tagsError(e.message));
+    p.log.warn(t().execute.reverting);
+    for (const tag of createdTags) {
+      try { await deleteLocalTag(tag); } catch { /* ignorar */ }
     }
     try { await resetLastCommit(); } catch { /* ignorar */ }
-    p.log.error("Se revirtieron los cambios de git. Los archivos quedan modificados en disco.");
+    p.log.error(t().execute.revertedGit);
     return;
   }
 
-  commitSpinner.stop("Git configurado.");
+  commitSpinner.stop(t().execute.commitDone);
   await clearCheckpoint();
 
   let doPush = push;
   if (!push) {
     const shouldPush = await p.confirm({
-      message: "¿Subir commits y tags al remoto ahora?",
+      message: t().execute.pushQuestion,
       initialValue: true,
     });
     doPush = !p.isCancel(shouldPush) && shouldPush;
@@ -142,15 +146,78 @@ export async function executeRelease(
 
   if (doPush) {
     const pushSpinner = p.spinner();
-    pushSpinner.start("Subiendo al remoto...");
+    pushSpinner.start(t().execute.pushing);
     try {
       await pushRelease();
-      pushSpinner.stop("Push completado.");
+      pushSpinner.stop(t().execute.pushDone);
     } catch (e: any) {
-      pushSpinner.stop("Error al hacer push.");
-      p.log.error(`git push falló: ${e.message}`);
-      p.log.warn("Podés hacerlo manualmente: git push --follow-tags");
+      pushSpinner.stop(t().execute.pushSpinnerError);
+      p.log.error(t().execute.pushError(e.message));
+      p.log.warn(t().execute.pushFallback);
     }
+  }
+
+  // GitHub Releases
+  if (config.github?.createRelease) {
+    const token = config.github.token ?? process.env.GITHUB_TOKEN;
+    if (!token) {
+      p.log.warn(t().execute.githubNoToken);
+    } else {
+      const ghInfo = await getGitHubRemoteInfo();
+      if (!ghInfo) {
+        p.log.warn(t().execute.githubNoRemote);
+      } else {
+        const ghSpinner = p.spinner();
+        ghSpinner.start(t().execute.githubCreating);
+        const urls: string[] = [];
+        for (const [pkgName, details] of state.entries()) {
+          try {
+            const tagName = buildTagName(pkgName, details.newVersion, config);
+            const url = await createGithubRelease({
+              token,
+              owner: ghInfo.owner,
+              repo: ghInfo.repo,
+              tagName,
+              body: details.tagMessage ?? "",
+              prerelease: config.github.prerelease ?? false,
+            });
+            urls.push(url);
+          } catch (e: any) {
+            p.log.warn(t().execute.githubFailed(pkgName, e.message));
+          }
+        }
+        ghSpinner.stop(t().execute.githubDone(urls.length));
+        for (const url of urls) p.log.info(`  ${url}`);
+      }
+    }
+  }
+
+  // NPM Publishing
+  if (config.npm?.publish) {
+    const npmSpinner = p.spinner();
+    npmSpinner.start(t().execute.npmPublishing);
+    for (const [pkgName, details] of state.entries()) {
+      try {
+        await publishPackage(details.pkg.dir, config.npm.access ?? "public");
+        p.log.info(t().execute.npmPublished(pkgName, details.newVersion));
+      } catch (e: any) {
+        p.log.warn(t().execute.npmFailed(pkgName, e.message));
+      }
+    }
+    npmSpinner.stop(t().execute.npmDone);
+  }
+
+  // Plugins
+  if (config.plugins?.length) {
+    const pluginResult: ReleaseResult = {
+      packages: Array.from(state.entries()).map(([name, d]) => ({
+        name,
+        previousVersion: d.pkg.manifest.version,
+        newVersion: d.newVersion,
+        tag: buildTagName(name, d.newVersion, config),
+      })),
+    };
+    await runAfterRelease(config.plugins, pluginResult);
   }
 
   if (json) {
@@ -167,5 +234,5 @@ export async function executeRelease(
     return;
   }
 
-  p.outro(`${color.green("¡Lanzamiento completado!")} Versiones generadas correctamente.`);
+  p.outro(color.green(t().execute.done));
 }

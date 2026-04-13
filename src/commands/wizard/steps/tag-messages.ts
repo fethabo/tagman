@@ -1,57 +1,58 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import type { ReleaseState } from "../../../core/checkpoint.js";
+import { t } from "../../../i18n/index.js";
 
 export async function promptTagMessages(
   state: Map<string, ReleaseState>
 ): Promise<boolean> {
   for (const [pkgName, details] of state.entries()) {
     const createTag = await p.confirm({
-      message: `¿Crear tag de Git para ${color.cyan(pkgName)}@${color.green(details.newVersion)}?`,
+      message: t().tagMessages.createTagQuestion(color.cyan(pkgName), color.green(details.newVersion)),
       initialValue: true,
     });
 
     if (p.isCancel(createTag)) {
-      p.cancel("Operation cancelled.");
+      p.cancel(t().tagMessages.cancelled);
       return false;
     }
 
     if (createTag) {
-      p.note(details.tagMessage, `Mensaje autogenerado para ${pkgName}`);
+      p.note(details.tagMessage, `${t().tagMessages.autoGenLabel} ${pkgName}`);
 
       const msgAction = await p.select({
-        message: "¿Qué mensaje deseas usar para el tag?",
+        message: t().tagMessages.actionSelect,
         options: [
-          { value: "auto",   label: "Usar el mensaje autogenerado" },
-          { value: "append", label: "Agregar texto adicional al autogenerado" },
-          { value: "custom", label: "Escribir un mensaje completamente nuevo" },
+          { value: "auto",   label: t().tagMessages.useAuto },
+          { value: "append", label: t().tagMessages.appendText },
+          { value: "custom", label: t().tagMessages.writeCustom },
         ],
       });
 
       if (p.isCancel(msgAction)) {
-        p.cancel("Operation cancelled.");
+        p.cancel(t().tagMessages.cancelled);
         return false;
       }
 
       if (msgAction === "auto") {
         state.get(pkgName)!.tagMessage = details.tagMessage;
       } else if (msgAction === "append") {
-        const appendedMsg = await p.text({ message: "Texto adicional:" });
+        const appendedMsg = await p.text({ message: t().tagMessages.appendInput });
         if (p.isCancel(appendedMsg)) {
-          p.cancel("Operation cancelled.");
+          p.cancel(t().tagMessages.cancelled);
           return false;
         }
 
         const position = await p.select({
-          message: "¿Dónde deseas insertar este texto?",
+          message: t().tagMessages.insertPosition,
           options: [
-            { value: "before", label: "Antes del listado de commits" },
-            { value: "after",  label: "Al final del mensaje" },
+            { value: "before", label: t().tagMessages.insertBefore },
+            { value: "after",  label: t().tagMessages.insertAfter },
           ],
         });
 
         if (p.isCancel(position)) {
-          p.cancel("Operation cancelled.");
+          p.cancel(t().tagMessages.cancelled);
           return false;
         }
 
@@ -61,9 +62,9 @@ export async function promptTagMessages(
           state.get(pkgName)!.tagMessage = details.tagMessage + "\n\n" + (appendedMsg as string);
         }
       } else if (msgAction === "custom") {
-        const customMsg = await p.text({ message: "Nuevo mensaje para el tag:" });
+        const customMsg = await p.text({ message: t().tagMessages.customInput });
         if (p.isCancel(customMsg)) {
-          p.cancel("Operation cancelled.");
+          p.cancel(t().tagMessages.cancelled);
           return false;
         }
         state.get(pkgName)!.tagMessage = customMsg as string;
