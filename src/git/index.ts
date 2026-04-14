@@ -104,6 +104,14 @@ export async function resetLastCommit(): Promise<void> {
 }
 
 /**
+ * Returns the name of the current git branch.
+ */
+export async function getCurrentBranch(): Promise<string> {
+  const branch = await git.branch();
+  return branch.current;
+}
+
+/**
  * Push the current branch and all tags to origin.
  */
 export async function pushRelease(): Promise<void> {

@@ -69,6 +69,7 @@ export const es: Messages = {
     selectChannel: "Paso 3b: Canal de pre-release",
     channelCustom: "Nombre de canal personalizado",
     channelCustomInput: "Ingresá el nombre del canal (ej: alpha, beta, rc):",
+    channelBranchHint: "rama actual",
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `¿Crear tag de Git para ${pkg}@${version}?`,

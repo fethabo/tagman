@@ -1,7 +1,7 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import semver from "semver";
-import { getCommitsForPath, getLastTagForPackage, getRepoCommitsSince, type CommitInfo } from "../../../git/index.js";
+import { getCommitsForPath, getLastTagForPackage, getRepoCommitsSince, getCurrentBranch, type CommitInfo } from "../../../git/index.js";
 import { suggestBump } from "../../../core/commits.js";
 import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js";
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
@@ -233,16 +233,24 @@ export async function scanAndSelectPackages(
             const preType = typeResult as string;
 
             // Step 3b: Pre-release channel (back → returns to type selection)
+            const currentBranch = await getCurrentBranch();
+            const defaultBranches = ["main", "master", "develop", "development"];
+            const isDefaultBranch = defaultBranches.includes(currentBranch);
             while (true) {
+              const channelOptions: { value: string; label: string; hint?: string }[] = [];
+              if (!isDefaultBranch) {
+                channelOptions.push({ value: currentBranch, label: currentBranch, hint: t().scan.channelBranchHint });
+              }
+              channelOptions.push(
+                { value: "alpha",  label: "alpha" },
+                { value: "beta",   label: "beta" },
+                { value: "rc",     label: "rc" },
+                { value: "custom", label: t().scan.channelCustom },
+              );
               const channelResult = await wizardSelect(
                 t().scan.selectChannel,
-                [
-                  { value: "alpha",  label: "alpha" },
-                  { value: "beta",   label: "beta" },
-                  { value: "rc",     label: "rc" },
-                  { value: "custom", label: t().scan.channelCustom },
-                ],
-                "alpha",
+                channelOptions,
+                isDefaultBranch ? "alpha" : currentBranch,
                 t().scan.goBack,
               );
 

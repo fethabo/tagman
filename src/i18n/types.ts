@@ -67,6 +67,7 @@ export type Messages = {
     selectChannel: string;
     channelCustom: string;
     channelCustomInput: string;
+    channelBranchHint: string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;
