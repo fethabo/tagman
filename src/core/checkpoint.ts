@@ -7,7 +7,10 @@ import { CommitInfo } from "../git/index.js";
 export interface ReleaseState {
   pkg: WorkspacePackage;
   commits: CommitInfo[];
-  bump: "patch" | "minor" | "major" | "none" | "custom";
+  bump: "patch" | "minor" | "major" | "none" | "custom"
+      | "premajor" | "preminor" | "prepatch" | "prerelease" | "graduate";
+  prereleaseChannel?: string;  // "alpha", "beta", "rc", or custom
+  githubPrerelease?: boolean;  // overrides config.github.prerelease when set
   newVersion: string;
   tagMessage: string;
 }

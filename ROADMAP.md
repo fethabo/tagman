@@ -30,17 +30,18 @@ This document tracks the technical direction of tagman. Completed phases are kep
 
 ## Upcoming
 
-### Phase 5 — Main Menu & Decoupled Flows
+### Phase 5 — Main Menu, Decoupled Flows & Pre-release
 
-The release wizard is currently the only entry point. Phase 5 introduces a top-level main menu that separates distinct actions and removes dead ends.
-
-- [ ] **Main menu** — `tagman` without arguments shows an interactive menu instead of launching the release wizard directly
-- [ ] **GitHub release from existing tag** — new dedicated flow to publish an already-created local tag to GitHub Releases, without needing new commits
-- [ ] **Fix no-commits dead end** — when no packages have pending commits, offer alternatives (e.g. GitHub release from tag) instead of exiting
+- [x] **Main menu** — `tagman` without arguments shows an interactive menu instead of launching the release wizard directly
+- [x] **GitHub release from existing tag** — dedicated flow (`tagman github-release`) to publish an already-created local tag to GitHub Releases, without needing new commits
+- [x] **Fix no-commits dead end** — when no packages have pending commits, the release flow offers the GitHub release option instead of exiting
+- [x] **GitHub token from `.npmrc`** — token resolved automatically from env var or `~/.npmrc`; no need to store it in `tagman.config.json`
+- [x] **Back navigation in tag message flows** — Ctrl+C on any text input (append / custom message) now goes back to the action selector instead of cancelling the wizard
+- [x] **Pre-release versioning** — first-class support for `alpha`, `beta`, `rc`, and custom channel versions via an interactive sub-flow; auto-detects current pre-release state; auto-marks GitHub Releases as pre-release
 
 ### Phase 6 — Advanced Release Management *(ideas, not committed)*
 
 - [ ] **Interactive tag browser** — browse, filter, and manage all existing tags from the CLI
 - [ ] **Draft GitHub releases** — option to create GitHub Releases in draft state for review before publishing
-- [ ] **Pre-release channels** — first-class support for `alpha`, `beta`, `rc` version suffixes
 - [ ] **Monorepo release groups** — define release groups in config to always version a set of packages together
+- [ ] **Release notes editor** — rich pre-release notes editing with template support

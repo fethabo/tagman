@@ -56,6 +56,17 @@ export type Messages = {
     customVersionError: string;
     cascadeQuestion: (dep: string, consumer: string) => string;
     cancelled: string;
+    preRelease: string;
+    preReleaseHint: string;
+    selectPreReleaseType: (pkg: string) => string;
+    preReleaseIncrement: (version: string) => string;
+    preReleaseGraduate: (version: string) => string;
+    prepatch: (version: string) => string;
+    preminor: (version: string) => string;
+    premajor: (version: string) => string;
+    selectChannel: string;
+    channelCustom: string;
+    channelCustomInput: string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;
@@ -71,6 +82,7 @@ export type Messages = {
     insertBefore: string;
     insertAfter: string;
     customInput: string;
+    cancelToBack: string;
     cancelled: string;
   };
   execute: {

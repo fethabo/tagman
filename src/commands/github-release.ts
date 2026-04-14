@@ -4,12 +4,13 @@ import color from "picocolors";
 import { loadConfig } from "../config.js";
 import { listAllTags, getTagAnnotation, getGitHubRemoteInfo } from "../git/index.js";
 import { createGithubRelease } from "../integrations/github.js";
+import { resolveGithubToken } from "../core/token.js";
 import { setLocale, t, type Locale } from "../i18n/index.js";
 
 export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof loadConfig>>): Promise<void> {
   const cfg = config ?? await loadConfig();
 
-  const token = cfg.github?.token ?? process.env.GITHUB_TOKEN;
+  const token = await resolveGithubToken(cfg.github?.token);
   if (!token) {
     p.log.warn(t().githubRelease.noToken);
     return;

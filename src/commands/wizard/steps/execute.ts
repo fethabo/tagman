@@ -8,6 +8,7 @@ import {
   logRelease,
 } from "../../../core/updater.js";
 import { createReleaseCommit, createAnnotatedTag, deleteLocalTag, resetLastCommit, pushRelease, getGitHubRemoteInfo } from "../../../git/index.js";
+import { resolveGithubToken } from "../../../core/token.js";
 import { createGithubRelease } from "../../../integrations/github.js";
 import { publishPackage } from "../../../integrations/npm.js";
 import { runAfterRelease, type ReleaseResult } from "../../../plugins/index.js";
@@ -159,7 +160,7 @@ export async function executeRelease(
 
   // GitHub Releases
   if (config.github?.createRelease) {
-    const token = config.github.token ?? process.env.GITHUB_TOKEN;
+    const token = await resolveGithubToken(config.github.token);
     if (!token) {
       p.log.warn(t().execute.githubNoToken);
     } else {
@@ -173,13 +174,14 @@ export async function executeRelease(
         for (const [pkgName, details] of state.entries()) {
           try {
             const tagName = buildTagName(pkgName, details.newVersion, config);
+            const isPrerelease = details.githubPrerelease ?? config.github.prerelease ?? false;
             const url = await createGithubRelease({
               token,
               owner: ghInfo.owner,
               repo: ghInfo.repo,
               tagName,
               body: details.tagMessage ?? "",
-              prerelease: config.github.prerelease ?? false,
+              prerelease: isPrerelease,
             });
             urls.push(url);
           } catch (e: any) {

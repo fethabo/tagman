@@ -46,10 +46,12 @@ export async function promptTagMessages(
         if (msgAction === "auto") {
           state.get(pkgName)!.tagMessage = details.tagMessage;
         } else if (msgAction === "append") {
-          const appendedMsg = await p.text({ message: t().tagMessages.appendInput });
+          const appendedMsg = await p.text({
+            message: `${t().tagMessages.appendInput}  ${color.dim(t().tagMessages.cancelToBack)}`,
+          });
           if (p.isCancel(appendedMsg)) {
-            p.cancel(t().tagMessages.cancelled);
-            return false;
+            redoAction = true;
+            continue;
           }
 
           const position = await wizardSelect(
@@ -78,10 +80,12 @@ export async function promptTagMessages(
             state.get(pkgName)!.tagMessage = details.tagMessage + "\n\n" + (appendedMsg as string);
           }
         } else if (msgAction === "custom") {
-          const customMsg = await p.text({ message: t().tagMessages.customInput });
+          const customMsg = await p.text({
+            message: `${t().tagMessages.customInput}  ${color.dim(t().tagMessages.cancelToBack)}`,
+          });
           if (p.isCancel(customMsg)) {
-            p.cancel(t().tagMessages.cancelled);
-            return false;
+            redoAction = true;
+            continue;
           }
           state.get(pkgName)!.tagMessage = customMsg as string;
         }

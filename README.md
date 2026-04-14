@@ -140,10 +140,28 @@ When selecting the version increment for a package, tagman offers:
 | `patch` | `1.0.0 → 1.0.1` — bug fixes and small changes |
 | `minor` | `1.0.0 → 1.1.0` — new features, backward-compatible |
 | `major` | `1.0.0 → 2.0.0` — breaking changes |
+| `pre-release ▸` | Opens a sub-flow to create alpha/beta/rc versions |
 | `none` | Keep the current version, create the git tag only (no `package.json` update) |
 | `custom` | Enter any exact SemVer version string (e.g. `2.0.0-beta.1`) |
 
-tagman auto-suggests the bump type based on the conventional commit types you selected (`feat →` minor, `BREAKING CHANGE →` major, everything else → patch).
+If the current version is already a pre-release (e.g. `2.0.0-alpha.1`), two additional options appear:
+
+| Option | Description |
+|--------|-------------|
+| `increment counter` | `2.0.0-alpha.1 → 2.0.0-alpha.2` — bump the pre-release counter |
+| `graduate to stable` | `2.0.0-alpha.1 → 2.0.0` — remove the pre-release identifier |
+
+tagman auto-suggests the bump type based on the conventional commit types you selected (`feat →` minor, `BREAKING CHANGE →` major, everything else → patch). When the current version is already a pre-release, "increment counter" is auto-suggested.
+
+#### Pre-release sub-flow
+
+When selecting **pre-release ▸**, tagman shows two additional prompts:
+
+1. **Base bump type** — whether the next stable would be a patch, minor or major:
+   - `prepatch` → `1.0.0-alpha.0`, `preminor` → `1.1.0-alpha.0`, `premajor` → `2.0.0-alpha.0`
+2. **Channel** — `alpha`, `beta`, `rc`, or a custom name
+
+The resulting version preview is shown in each option's label before you confirm. GitHub Releases created from a pre-release version are automatically marked as `prerelease` on GitHub.
 
 ### Wizard Back Navigation
 
@@ -257,7 +275,28 @@ npx tagman release
 }
 ```
 
-Set `GITHUB_TOKEN` in your environment (or in `github.token`). After tagging and pushing, tagman will create one GitHub Release per package and publish each to npm.
+After tagging and pushing, tagman will create one GitHub Release per package and publish each to npm.
+
+### GitHub token
+
+tagman resolves the GitHub token from these sources, in priority order:
+
+1. **`GITHUB_TOKEN` environment variable** — set it in your shell profile or CI environment
+2. **`~/.npmrc`** — add `github_token=ghp_yourtoken` to your global npm config
+3. **`.npmrc` in the project root** — same format, project-scoped
+4. **`config.github.token`** in `tagman.config.json` — not recommended (risk of committing secrets to version control)
+
+**Recommended setup** — add to your global `~/.npmrc`:
+```
+github_token=ghp_yourtoken
+```
+
+Or set the environment variable:
+```bash
+export GITHUB_TOKEN=ghp_yourtoken
+```
+
+The token needs the `repo` scope (or `public_repo` for public repositories) to create releases.
 
 #### Use case: Plugin (custom post-release logic)
 
@@ -493,10 +532,28 @@ Al seleccionar el incremento de versión para un paquete, tagman ofrece:
 | `patch` | `1.0.0 → 1.0.1` — correcciones y cambios menores |
 | `minor` | `1.0.0 → 1.1.0` — nuevas funcionalidades, compatible hacia atrás |
 | `major` | `1.0.0 → 2.0.0` — cambios que rompen compatibilidad |
+| `pre-release ▸` | Abre un sub-flujo para crear versiones alpha/beta/rc |
 | `none` | Mantiene la versión actual, solo crea el tag de git (no modifica `package.json`) |
 | `custom` | Ingresá cualquier versión SemVer exacta (ej: `2.0.0-beta.1`) |
 
-tagman sugiere automáticamente el tipo de bump según los tipos de commits convencionales seleccionados (`feat →` minor, `BREAKING CHANGE →` major, el resto → patch).
+Si la versión actual ya es pre-release (ej: `2.0.0-alpha.1`), aparecen dos opciones adicionales:
+
+| Opción | Descripción |
+|--------|-------------|
+| `incrementar contador` | `2.0.0-alpha.1 → 2.0.0-alpha.2` — incrementa el contador de pre-release |
+| `graduar a estable` | `2.0.0-alpha.1 → 2.0.0` — elimina el identificador de pre-release |
+
+tagman sugiere automáticamente el tipo de bump según los tipos de commits convencionales (`feat →` minor, `BREAKING CHANGE →` major, el resto → patch). Cuando la versión actual ya es pre-release, se sugiere "incrementar contador".
+
+#### Sub-flujo de pre-release
+
+Al seleccionar **pre-release ▸**, tagman muestra dos prompts adicionales:
+
+1. **Tipo de bump base** — si el próximo estable sería patch, minor o major:
+   - `prepatch` → `1.0.0-alpha.0`, `preminor` → `1.1.0-alpha.0`, `premajor` → `2.0.0-alpha.0`
+2. **Canal** — `alpha`, `beta`, `rc`, o un nombre personalizado
+
+El preview de la versión resultante se muestra en el label de cada opción antes de confirmar. Los GitHub Releases creados a partir de una versión pre-release se marcan automáticamente como `prerelease` en GitHub.
 
 ### Navegación Hacia Atrás en el Wizard
 
@@ -610,7 +667,28 @@ npx tagman release
 }
 ```
 
-Configurá `GITHUB_TOKEN` en tu entorno (o en `github.token`). Después del tagging y el push, tagman creará un GitHub Release por paquete y publicará cada uno en npm.
+Después del tagging y el push, tagman creará un GitHub Release por paquete y publicará cada uno en npm.
+
+### Token de GitHub
+
+tagman resuelve el token de GitHub desde estas fuentes, en orden de prioridad:
+
+1. **Variable de entorno `GITHUB_TOKEN`** — configurala en tu perfil de shell o en el entorno de CI
+2. **`~/.npmrc`** — agregá `github_token=ghp_tutoken` al config global de npm
+3. **`.npmrc` en la raíz del proyecto** — mismo formato, alcance del proyecto
+4. **`config.github.token`** en `tagman.config.json` — no recomendado (riesgo de commitear secretos al repositorio)
+
+**Configuración recomendada** — agregá a tu `~/.npmrc` global:
+```
+github_token=ghp_tutoken
+```
+
+O configurá la variable de entorno:
+```bash
+export GITHUB_TOKEN=ghp_tutoken
+```
+
+El token necesita el scope `repo` (o `public_repo` para repositorios públicos) para crear releases.
 
 #### Caso de uso: Plugin (lógica post-release personalizada)
 

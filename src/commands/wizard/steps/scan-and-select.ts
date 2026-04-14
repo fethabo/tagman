@@ -97,6 +97,7 @@ export async function scanAndSelectPackages(
     let goBackToCommits = false;
     let chosenCommits: CommitInfo[] = [];
     let bump: string = "";
+    let prereleaseChannel: string | undefined;
 
     do {
       goBackToCommits = false;
@@ -158,20 +159,39 @@ export async function scanAndSelectPackages(
 
       // Step 3: Version Bump
       const suggested = suggestBump(chosenCommits.map(c => c.message));
+      const currentVersion = pkgInfo.pkg.manifest.version;
+      const isCurrentPrerelease = semver.prerelease(currentVersion) !== null;
+      const existingChannel = isCurrentPrerelease
+        ? String(semver.prerelease(currentVersion)![0])
+        : undefined;
 
       if (globalBump) {
         bump = globalBump;
       } else {
+        const mainBumpOptions: { value: string; label: string; hint?: string }[] = [];
+
+        if (isCurrentPrerelease) {
+          const nextPre = semver.inc(currentVersion, "prerelease", existingChannel)!;
+          const stableVer = `${semver.major(currentVersion)}.${semver.minor(currentVersion)}.${semver.patch(currentVersion)}`;
+          mainBumpOptions.push(
+            { value: "prerelease", label: t().scan.preReleaseIncrement(nextPre), hint: "suggested" },
+            { value: "graduate",   label: t().scan.preReleaseGraduate(stableVer) },
+          );
+        }
+
+        mainBumpOptions.push(
+          { value: "patch",      label: `Patch (${semver.inc(currentVersion, "patch")})`, hint: !isCurrentPrerelease && suggested === "patch" ? "suggested" : undefined },
+          { value: "minor",      label: `Minor (${semver.inc(currentVersion, "minor")})`, hint: !isCurrentPrerelease && suggested === "minor" ? "suggested" : undefined },
+          { value: "major",      label: `Major (${semver.inc(currentVersion, "major")})`, hint: !isCurrentPrerelease && suggested === "major" ? "suggested" : undefined },
+          { value: "prerelease-new", label: t().scan.preRelease, hint: t().scan.preReleaseHint },
+          { value: "none",       label: `No incrementar (solo Git Tag: ${currentVersion})` },
+          { value: "custom",     label: `Definir una versión específica...` },
+        );
+
         const result = await wizardSelect(
-          `${t().scan.selectBump(pkgName, pkgInfo.pkg.manifest.version)} ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
-          [
-            { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? "suggested" : undefined },
-            { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? "suggested" : undefined },
-            { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? "suggested" : undefined },
-            { value: "none",   label: `No incrementar (solo Git Tag: ${pkgInfo.pkg.manifest.version})` },
-            { value: "custom", label: `Definir una versión específica...` },
-          ],
-          suggested,
+          `${t().scan.selectBump(pkgName, currentVersion)} ${color.cyan(pkgName)} (Current: ${currentVersion})`,
+          mainBumpOptions,
+          isCurrentPrerelease ? "prerelease" : suggested,
           t().scan.goBack,
         );
 
@@ -185,15 +205,93 @@ export async function scanAndSelectPackages(
           continue;
         }
 
-        bump = result as string;
+        if (result === "prerelease-new") {
+          // Steps 3a + 3b: type and channel selection with back navigation between them
+          let preBumpSettled = false;
+          preReleaseLoop: while (!preBumpSettled) {
+            // Step 3a: Pre-release base bump type
+            const typeResult = await wizardSelect(
+              t().scan.selectPreReleaseType(pkgName),
+              [
+                { value: "prepatch", label: t().scan.prepatch(semver.inc(currentVersion, "prepatch", "alpha")!) },
+                { value: "preminor", label: t().scan.preminor(semver.inc(currentVersion, "preminor", "alpha")!) },
+                { value: "premajor", label: t().scan.premajor(semver.inc(currentVersion, "premajor", "alpha")!) },
+              ],
+              "preminor",
+              t().scan.goBack,
+            );
+
+            if (p.isCancel(typeResult)) {
+              p.cancel(t().scan.cancelled);
+              return null;
+            }
+            if (typeResult === SELECT_BACK) {
+              // Back from type → back to main bump selector (= back to commits)
+              goBackToCommits = true;
+              break preReleaseLoop;
+            }
+            const preType = typeResult as string;
+
+            // Step 3b: Pre-release channel (back → returns to type selection)
+            while (true) {
+              const channelResult = await wizardSelect(
+                t().scan.selectChannel,
+                [
+                  { value: "alpha",  label: "alpha" },
+                  { value: "beta",   label: "beta" },
+                  { value: "rc",     label: "rc" },
+                  { value: "custom", label: t().scan.channelCustom },
+                ],
+                "alpha",
+                t().scan.goBack,
+              );
+
+              if (p.isCancel(channelResult)) {
+                p.cancel(t().scan.cancelled);
+                return null;
+              }
+              if (channelResult === SELECT_BACK) {
+                // Back from channel → loop preReleaseLoop to re-show type selector
+                continue preReleaseLoop;
+              }
+
+              let channelName: string;
+              if (channelResult === "custom") {
+                const customChannel = await p.text({ message: t().scan.channelCustomInput });
+                if (p.isCancel(customChannel)) {
+                  p.cancel(t().scan.cancelled);
+                  return null;
+                }
+                channelName = (customChannel as string).trim();
+              } else {
+                channelName = channelResult as string;
+              }
+
+              prereleaseChannel = channelName;
+              bump = preType;
+              preBumpSettled = true;
+              break;
+            }
+          }
+
+          if (goBackToCommits) continue;
+        } else {
+          bump = result as string;
+        }
       }
     } while (goBackToCommits);
 
     processed.add(pkgName);
 
+    const currentVersion = pkgInfo.pkg.manifest.version;
+    const isPrereleaseBump = ["premajor", "preminor", "prepatch", "prerelease"].includes(bump);
+
     let newVersion: string;
     if (bump === "none") {
-      newVersion = pkgInfo.pkg.manifest.version;
+      newVersion = currentVersion;
+    } else if (bump === "graduate") {
+      const parsed = semver.parse(currentVersion)!;
+      newVersion = `${parsed.major}.${parsed.minor}.${parsed.patch}`;
     } else if (bump === "custom") {
       const customV = await p.text({
         message: t().scan.customVersion(pkgName),
@@ -206,8 +304,13 @@ export async function scanAndSelectPackages(
         return null;
       }
       newVersion = semver.clean(customV as string)!;
+    } else if (bump === "prerelease") {
+      const existingChannel = semver.prerelease(currentVersion)?.[0] as string | undefined;
+      newVersion = semver.inc(currentVersion, "prerelease", prereleaseChannel ?? existingChannel)!;
+    } else if (isPrereleaseBump) {
+      newVersion = semver.inc(currentVersion, bump as semver.ReleaseType, prereleaseChannel)!;
     } else {
-      newVersion = semver.inc(pkgInfo.pkg.manifest.version, bump as semver.ReleaseType)!;
+      newVersion = semver.inc(currentVersion, bump as semver.ReleaseType)!;
     }
 
     // Step 4: Cascade analysis
@@ -264,7 +367,9 @@ export async function scanAndSelectPackages(
     state.set(pkgName, {
       pkg: pkgInfo.pkg,
       commits: chosenCommits,
-      bump: bump as "patch" | "minor" | "major" | "none" | "custom",
+      bump: bump as ReleaseState["bump"],
+      prereleaseChannel,
+      githubPrerelease: isPrereleaseBump || undefined,
       newVersion,
       tagMessage: defaultTagMsg,
     });
