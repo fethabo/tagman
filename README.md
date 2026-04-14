@@ -27,6 +27,9 @@ Unlike fully automated semantic release tools, **tagman** doesn't execute destru
 - **Smart Commit Detection**: Automatically identifies which packages have pending changes since their last `package-name@version` git tag.
 - **Interactive Wizard**: A beautiful CLI experience powered by `@clack/prompts`.
 - **Granular Selection**: Multi-select the exact commits you want to include in each package's release.
+- **Wizard Back Navigation**: Navigate back at any wizard step — from bump selection to commit re-selection, from tag messages to package re-selection, or from commit selection (`←` key) back to the package multiselect — without aborting the operation.
+- **Extra-Directory Commits**: Optionally include commits from outside the package's directory in a release (Step 2b). Useful for shared files dynamically imported across modules with no declared interdependency.
+- **Commit Detail Toggle**: Press `d` while selecting commits to reveal timestamps and authors inline; press again to hide.
 - **Auto-Suggested SemVer**: Evaluates your selected commits using conventional commits rules (`feat`, `fix`, `BREAKING CHANGE`) to suggest whether you need a `patch`, `minor`, or `major` bump.
 - **Cascade Versioning**: Scans your workspace dependency graph. If `Package A` is updated, it offers to automatically bump `App B` that consumes it.
 - **Intelligent Checkpointing**: If a release process is interrupted, `tagman` creates a local state checkpoint. You can safely resume your release later, or use the intelligent rollback feature to cleanly revert `package.json` and `CHANGELOG.md` file changes.
@@ -224,7 +227,7 @@ This project is constantly evolving. The following milestones mark the technical
 
 [x] Hot-swappable Language: Language switching at runtime via `--lang en|es` flag.
 
-[ ] UI Refinement: Optimize @clack/prompts interactive interfaces for better readability.
+[x] UI Refinement: Wizard back navigation, extra-directory commit selection, and inline commit detail toggle (`d` key).
 
 #### 🤖 Phase 4: Agentic Optimization (AI-Ready)
 [x] JSON Mode (--json): Structured data output so an AI agent can process command results without text parsing.
@@ -252,6 +255,9 @@ A diferencia de las herramientas de *semantic release* completamente automatizad
 - **Detección Inteligente de Commits**: Identifica automáticamente qué paquetes tienen cambios pendientes desde su último tag de git (`nombre-paquete@version`).
 - **Wizard Interactivo**: Una experiencia de terminal hermosa y limpia impulsada por `@clack/prompts`.
 - **Selección Granular**: Selección múltiple de los commits exactos que deseas incluir en el lanzamiento de cada paquete.
+- **Navegación Hacia Atrás en el Wizard**: Volvé a cualquier paso anterior sin abortar la operación — desde la selección de bump a los commits, desde los mensajes de tag a los paquetes, o desde la selección de commits (tecla `←`) al multiselect de paquetes.
+- **Commits Fuera del Directorio del Paquete**: Incluí opcionalmente commits de fuera del directorio del paquete (Paso 2b). Útil para archivos compartidos importados dinámicamente por módulos sin interdependencia declarada.
+- **Toggle de Detalle de Commits**: Presioná `d` mientras seleccionás commits para ver fecha y autor en línea; presioná de nuevo para ocultar.
 - **Sugerencia de SemVer**: Evalúa los commits seleccionados bajo las reglas de *conventional commits* para sugerirte si necesitas un incremento `patch`, `minor` o `major`.
 - **Versionado en Cascada**: Escanea el grafo de dependencias de tu workspace. Si el `Paquete A` se actualiza, te ofrece actualizar automáticamente la `App B` que lo consume.
 - **Checkpoints Inteligentes (Resiliencia)**: Si un proceso de release se interrumpe, `tagman` crea un punto de guardado local. Puedes retomar tu lanzamiento más tarde o usar la función de *rollback* interactivo para revertir de manera limpia los cambios en los archivos `package.json` y `CHANGELOG.md`.
@@ -449,7 +455,7 @@ Este proyecto está en constante evolución. Los siguientes hitos marcan la dire
 
 [x] Hot-swapping de Idioma: Cambio de idioma en tiempo de ejecución mediante el flag `--lang en|es`.
 
-[ ] Refinamiento de UI: Optimizar las interfaces interactivas de @clack/prompts para una mejor legibilidad.
+[x] Refinamiento de UI: Navegación hacia atrás en el wizard, selección de commits fuera del directorio del paquete, y toggle de detalle de commits con la tecla `d`.
 
 #### 🤖 Fase 4: Optimización Agéntica (IA-Ready)
 [x] Modo JSON (--json): Salida de datos estructurada para que un agente de IA pueda procesar el resultado del comando sin parsing de texto.

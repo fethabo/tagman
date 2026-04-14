@@ -1,7 +1,7 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import semver from "semver";
-import { getCommitsForPath, getLastTagForPackage, type CommitInfo } from "../../../git/index.js";
+import { getCommitsForPath, getLastTagForPackage, getRepoCommitsSince, type CommitInfo } from "../../../git/index.js";
 import { suggestBump } from "../../../core/commits.js";
 import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js";
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
@@ -13,6 +13,7 @@ import { t } from "../../../i18n/index.js";
 export type PackageInfo = {
   pkg: WorkspacePackage;
   commits: CommitInfo[];
+  extraCommits: CommitInfo[];
   lastTag: string | null;
 };
 
@@ -37,7 +38,10 @@ export async function scanAndSelectPackages(
     const lastTag = await getLastTagForPackage(pkg.manifest.name);
     const commits = await getCommitsForPath(pkg.dir, lastTag);
     if (commits.length > 0) {
-      packagesWithCommits.push({ pkg, commits, lastTag });
+      const repoCommits = await getRepoCommitsSince(lastTag);
+      const pathHashes = new Set(commits.map(c => c.hash));
+      const extraCommits = repoCommits.filter(c => !pathHashes.has(c.hash));
+      packagesWithCommits.push({ pkg, commits, extraCommits, lastTag });
     }
   }
 
@@ -97,14 +101,18 @@ export async function scanAndSelectPackages(
     do {
       goBackToCommits = false;
 
-      // Step 2: Commits Selection
+      // Step 2: Path-specific commit selection
       if (globalBump !== undefined || yes) {
-        // Headless: seleccionar todos los commits
+        // Headless: select all path commits, skip extras
         chosenCommits = pkgInfo.commits;
       } else {
         const selectedCommitHashes = await commitMultiSelect(
           `${t().scan.selectCommits(pkgName)} ${color.cyan(pkgName)}`,
-          pkgInfo.commits.map(c => ({ value: c.hash, label: `${c.hash.substring(0, 7)} - ${c.message}` })),
+          pkgInfo.commits.map(c => ({
+            value: c.hash,
+            label: `${c.hash.substring(0, 7)} - ${c.message}`,
+            details: `${c.date} · ${c.author_name}`,
+          })),
           pkgInfo.commits.map(c => c.hash),
           t().scan.goBackToPackages,
         );
@@ -116,9 +124,36 @@ export async function scanAndSelectPackages(
           return null;
         }
 
-        chosenCommits = pkgInfo.commits.filter(c =>
+        const selectedPathCommits = pkgInfo.commits.filter(c =>
           (selectedCommitHashes as string[]).includes(c.hash)
         );
+
+        // Step 2b: Optional extra commits from outside this package's directory
+        let chosenExtraCommits: CommitInfo[] = [];
+        if (pkgInfo.extraCommits.length > 0) {
+          const extraHashes = await commitMultiSelect(
+            `${t().scan.selectExtraCommits(pkgName)} ${color.cyan(pkgName)}`,
+            pkgInfo.extraCommits.map(c => ({
+              value: c.hash,
+              label: `${c.hash.substring(0, 7)} - ${c.message}`,
+              details: `${c.date} · ${c.author_name}`,
+            })),
+            [],           // none pre-selected
+            undefined,    // no go-back shortcut in step 2b
+            true,         // allowEmpty — this step is optional
+          );
+
+          if (p.isCancel(extraHashes)) {
+            p.cancel(t().scan.cancelled);
+            return null;
+          }
+
+          chosenExtraCommits = pkgInfo.extraCommits.filter(c =>
+            (extraHashes as string[]).includes(c.hash)
+          );
+        }
+
+        chosenCommits = [...selectedPathCommits, ...chosenExtraCommits];
       }
 
       // Step 3: Version Bump
@@ -202,11 +237,12 @@ export async function scanAndSelectPackages(
           if (!existing) {
             packagesWithCommits.push({
               pkg: dep,
-              commits: [{ hash: "cascade", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman" }],
+              commits: [{ hash: "cascade", date: "", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman" }],
+              extraCommits: [],
               lastTag: null,
             });
           } else {
-            existing.commits.unshift({ hash: "cascade", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman" });
+            existing.commits.unshift({ hash: "cascade", date: "", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman" });
           }
         }
       }

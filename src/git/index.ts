@@ -4,6 +4,7 @@ export const git: SimpleGit = simpleGit();
 
 export interface CommitInfo {
   hash: string;
+  date: string;
   message: string;
   body: string;
   author_name: string;
@@ -43,12 +44,32 @@ export async function getCommitsForPath(path: string, sinceTag: string | null): 
 
     return log.all.map(c => ({
       hash: c.hash,
+      date: c.date,
       message: c.message,
       body: c.body,
       author_name: c.author_name,
     }));
   } catch (error) {
     console.error(`Error getting commits for path ${path}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Gets all commits in the repository since a given tag (no path filter).
+ * Used to find commits that don't touch a specific package's directory.
+ */
+export async function getRepoCommitsSince(sinceTag: string | null): Promise<CommitInfo[]> {
+  try {
+    const log = await git.log([sinceTag ? `${sinceTag}..HEAD` : "HEAD"]);
+    return log.all.map(c => ({
+      hash: c.hash,
+      date: c.date,
+      message: c.message,
+      body: c.body,
+      author_name: c.author_name,
+    }));
+  } catch {
     return [];
   }
 }
