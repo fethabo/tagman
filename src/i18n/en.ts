@@ -8,8 +8,8 @@ export const en: Messages = {
   },
   menu: {
     question: "What do you want to do?",
-    createRelease: "Create release",
-    createReleaseHint: "Scan commits, bump version, create git tags and CHANGELOG",
+    createRelease: "New version",
+    createReleaseHint: "Scan commits, bump version, create git tag and CHANGELOG",
     githubRelease: "GitHub release from existing tag",
     githubReleaseHint: "Publish an already-created local tag to GitHub Releases",
     exit: "Exit",

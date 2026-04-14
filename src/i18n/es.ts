@@ -8,7 +8,7 @@ export const es: Messages = {
   },
   menu: {
     question: "¿Qué querés hacer?",
-    createRelease: "Crear release",
+    createRelease: "Nueva versión",
     createReleaseHint: "Escanear commits, incrementar versión, crear tags de git y CHANGELOG",
     githubRelease: "GitHub release desde tag existente",
     githubReleaseHint: "Publicar un tag local ya creado en GitHub Releases",
