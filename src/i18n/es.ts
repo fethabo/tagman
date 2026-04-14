@@ -26,6 +26,7 @@ export const es: Messages = {
     selectCommits: (pkg) => `Step 2: Commits for`,
     selectBump: (pkg, current) => `Step 3: Version increment for`,
     goBack: "← Volver a selección de commits",
+    goBackToPackages: "← Volver a selección de paquetes",
     customVersion: (pkg) => `Escribe la nueva versión exacta (SemVer) para ${pkg}:`,
     customVersionError: "Error: debe ser una versión SemVer válida (ej: 1.2.3)",
     cascadeQuestion: (dep, consumer) => `Aviso: ${dep} es dependencia de ${consumer}. ¿Deseas versionar también ${consumer} para actualizar su referencia?`,

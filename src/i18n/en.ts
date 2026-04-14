@@ -26,6 +26,7 @@ export const en: Messages = {
     selectCommits: (pkg) => `Step 2: Commits for`,
     selectBump: (pkg, current) => `Step 3: Version increment for`,
     goBack: "← Go back to commit selection",
+    goBackToPackages: "← Go back to package selection",
     customVersion: (pkg) => `Enter the exact SemVer version for ${pkg}:`,
     customVersionError: "Error: must be a valid SemVer version (e.g. 1.2.3)",
     cascadeQuestion: (dep, consumer) => `Notice: ${dep} is a dependency of ${consumer}. Do you want to also version ${consumer} to update its reference?`,

@@ -7,7 +7,7 @@ import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
 import type { ReleaseState } from "../../../core/checkpoint.js";
 import type { TagmanConfig } from "../../../config.js";
-import { commitMultiSelect } from "../commit-multiselect.js";
+import { commitMultiSelect, COMMIT_BACK } from "../commit-multiselect.js";
 import { t } from "../../../i18n/index.js";
 
 export type PackageInfo = {
@@ -26,7 +26,7 @@ export async function scanAndSelectPackages(
   allPackages: WorkspacePackage[],
   config: TagmanConfig,
   options: ScanOptions = {}
-): Promise<Map<string, ReleaseState> | null> {
+): Promise<Map<string, ReleaseState> | null | "back"> {
   const { packages: pkgFilter, bump: globalBump, yes = false } = options;
   const packagesWithCommits: PackageInfo[] = [];
 
@@ -105,8 +105,11 @@ export async function scanAndSelectPackages(
         const selectedCommitHashes = await commitMultiSelect(
           `${t().scan.selectCommits(pkgName)} ${color.cyan(pkgName)}`,
           pkgInfo.commits.map(c => ({ value: c.hash, label: `${c.hash.substring(0, 7)} - ${c.message}` })),
-          pkgInfo.commits.map(c => c.hash)
+          pkgInfo.commits.map(c => c.hash),
+          t().scan.goBackToPackages,
         );
+
+        if (selectedCommitHashes === COMMIT_BACK) return "back";
 
         if (p.isCancel(selectedCommitHashes)) {
           p.cancel(t().scan.cancelled);

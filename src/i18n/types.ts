@@ -24,6 +24,7 @@ export type Messages = {
     selectCommits: (pkg: string) => string;
     selectBump: (pkg: string, current: string) => string;
     goBack: string;
+    goBackToPackages: string;
     customVersion: (pkg: string) => string;
     customVersionError: string;
     cascadeQuestion: (dep: string, consumer: string) => string;

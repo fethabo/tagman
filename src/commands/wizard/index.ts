@@ -57,7 +57,8 @@ export const wizardCommand = new Command("release")
             bump: options.bump,
             yes: options.yes,
           });
-          if (!newState) return;
+          if (newState === null) return;
+          if (newState === "back") continue;
           state = newState;
 
           if (!options.dryRun) {
