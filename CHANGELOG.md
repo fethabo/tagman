@@ -53,3 +53,9 @@
 * **fix:** agregado faltante de un go back en el wizard. closes #8 @fethabo 66e8449
 * update readme @fethabo 4f3c6b8
 * Agregada dependencia faltante en el lock file @fethabo 0ec8b02
+
+## [1.3.0-alpha.0](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.2.2...@fethabo/tagman@1.3.0-alpha.0) (2026-04-14)
+
+* fix comments @fethabo 5d98812
+* **feat:** agregado menu inicial, fix: corregido back en steps de wizard @fethabo 3c8b23f
+* **refactor:** cambiadas opciones de menu por comandos para navegacion y visualizacion de info de commits. agregada posibilidad de seleccionar commits externos al package selecionado (cross-package-commits refs #7) @fethabo cbd3772
