@@ -46,3 +46,10 @@
 ## [1.2.1](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.2.0...@fethabo/tagman@1.2.1) (2026-04-13)
 
 * **feat:** implement GitHub releases, NPM publishing, plugin system, and i18n @fethabo e36cbe2
+
+## [1.2.2](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.2.1...@fethabo/tagman@1.2.2) (2026-04-14)
+
+* **fix:** agregado go back a packages @fethabo 6be6ed5
+* **fix:** agregado faltante de un go back en el wizard. closes #8 @fethabo 66e8449
+* update readme @fethabo 4f3c6b8
+* Agregada dependencia faltante en el lock file @fethabo 0ec8b02
