@@ -59,3 +59,7 @@
 * fix comments @fethabo 5d98812
 * **feat:** agregado menu inicial, fix: corregido back en steps de wizard @fethabo 3c8b23f
 * **refactor:** cambiadas opciones de menu por comandos para navegacion y visualizacion de info de commits. agregada posibilidad de seleccionar commits externos al package selecionado (cross-package-commits refs #7) @fethabo cbd3772
+
+## [1.3.0-alpha.1](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.0...@fethabo/tagman@1.3.0-alpha.1) (2026-04-14)
+
+* **feat:** agregado soporte para prereleases. fix: corregido backs en algunos steps. update texts @fethabo 0470fab
