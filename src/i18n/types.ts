@@ -23,6 +23,7 @@ export type Messages = {
     noMatchingPackages: (filter: string) => string;
     selectCommits: (pkg: string) => string;
     selectBump: (pkg: string, current: string) => string;
+    goBack: string;
     customVersion: (pkg: string) => string;
     customVersionError: string;
     cascadeQuestion: (dep: string, consumer: string) => string;
@@ -35,6 +36,7 @@ export type Messages = {
     useAuto: string;
     appendText: string;
     writeCustom: string;
+    goBack: string;
     appendInput: string;
     insertPosition: string;
     insertBefore: string;

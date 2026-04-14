@@ -51,17 +51,22 @@ export const wizardCommand = new Command("release")
       }
 
       if (!isRecovered) {
-        const newState = await scanAndSelectPackages(allPackages, config, {
-          packages: options.packages,
-          bump: options.bump,
-          yes: options.yes,
-        });
-        if (!newState) return;
-        state = newState;
+        while (true) {
+          const newState = await scanAndSelectPackages(allPackages, config, {
+            packages: options.packages,
+            bump: options.bump,
+            yes: options.yes,
+          });
+          if (!newState) return;
+          state = newState;
 
-        if (!options.dryRun) {
-          const ok = await promptTagMessages(state);
-          if (!ok) return;
+          if (!options.dryRun) {
+            const tagResult = await promptTagMessages(state);
+            if (tagResult === false) return;
+            if (tagResult === "back") continue;
+          }
+
+          break;
         }
       }
 

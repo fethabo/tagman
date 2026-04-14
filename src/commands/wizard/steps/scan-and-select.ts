@@ -83,58 +83,75 @@ export async function scanAndSelectPackages(
   while (queue.length > 0) {
     const pkgName = queue.shift()!;
     if (processed.has(pkgName)) continue;
-    processed.add(pkgName);
 
     const pkgInfo = packagesWithCommits.find(info => info.pkg.manifest.name === pkgName);
-    if (!pkgInfo) continue;
-
-    // Step 2: Commits Selection
-    let chosenCommits: CommitInfo[];
-    if (globalBump !== undefined || yes) {
-      // Headless: seleccionar todos los commits
-      chosenCommits = pkgInfo.commits;
-    } else {
-      const selectedCommitHashes = await commitMultiSelect(
-        `${t().scan.selectCommits(pkgName)} ${color.cyan(pkgName)}`,
-        pkgInfo.commits.map(c => ({ value: c.hash, label: `${c.hash.substring(0, 7)} - ${c.message}` })),
-        pkgInfo.commits.map(c => c.hash)
-      );
-
-      if (p.isCancel(selectedCommitHashes)) {
-        p.cancel(t().scan.cancelled);
-        return null;
-      }
-
-      chosenCommits = pkgInfo.commits.filter(c =>
-        (selectedCommitHashes as string[]).includes(c.hash)
-      );
+    if (!pkgInfo) {
+      processed.add(pkgName);
+      continue;
     }
 
-    // Step 3: Version Bump
-    const suggested = suggestBump(chosenCommits.map(c => c.message));
+    let goBackToCommits = false;
+    let chosenCommits: CommitInfo[] = [];
+    let bump: string = "";
 
-    let bump: string;
-    if (globalBump) {
-      bump = globalBump;
-    } else {
-      const result = await p.select({
-        message: `${t().scan.selectBump(pkgName, pkgInfo.pkg.manifest.version)} ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
-        options: [
-          { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? "suggested" : undefined },
-          { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? "suggested" : undefined },
-          { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? "suggested" : undefined },
-          { value: "none", label: `No incrementar (solo Git Tag: ${pkgInfo.pkg.manifest.version})` },
-          { value: "custom", label: `Definir una versión específica...` },
-        ],
-        initialValue: suggested,
-      });
+    do {
+      goBackToCommits = false;
 
-      if (p.isCancel(result)) {
-        p.cancel(t().scan.cancelled);
-        return null;
+      // Step 2: Commits Selection
+      if (globalBump !== undefined || yes) {
+        // Headless: seleccionar todos los commits
+        chosenCommits = pkgInfo.commits;
+      } else {
+        const selectedCommitHashes = await commitMultiSelect(
+          `${t().scan.selectCommits(pkgName)} ${color.cyan(pkgName)}`,
+          pkgInfo.commits.map(c => ({ value: c.hash, label: `${c.hash.substring(0, 7)} - ${c.message}` })),
+          pkgInfo.commits.map(c => c.hash)
+        );
+
+        if (p.isCancel(selectedCommitHashes)) {
+          p.cancel(t().scan.cancelled);
+          return null;
+        }
+
+        chosenCommits = pkgInfo.commits.filter(c =>
+          (selectedCommitHashes as string[]).includes(c.hash)
+        );
       }
-      bump = result as string;
-    }
+
+      // Step 3: Version Bump
+      const suggested = suggestBump(chosenCommits.map(c => c.message));
+
+      if (globalBump) {
+        bump = globalBump;
+      } else {
+        const result = await p.select({
+          message: `${t().scan.selectBump(pkgName, pkgInfo.pkg.manifest.version)} ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
+          options: [
+            { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? "suggested" : undefined },
+            { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? "suggested" : undefined },
+            { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? "suggested" : undefined },
+            { value: "none", label: `No incrementar (solo Git Tag: ${pkgInfo.pkg.manifest.version})` },
+            { value: "custom", label: `Definir una versión específica...` },
+            { value: "back", label: t().scan.goBack },
+          ],
+          initialValue: suggested,
+        });
+
+        if (p.isCancel(result)) {
+          p.cancel(t().scan.cancelled);
+          return null;
+        }
+
+        if (result === "back") {
+          goBackToCommits = true;
+          continue;
+        }
+
+        bump = result as string;
+      }
+    } while (goBackToCommits);
+
+    processed.add(pkgName);
 
     let newVersion: string;
     if (bump === "none") {

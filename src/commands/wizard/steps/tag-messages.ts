@@ -5,7 +5,7 @@ import { t } from "../../../i18n/index.js";
 
 export async function promptTagMessages(
   state: Map<string, ReleaseState>
-): Promise<boolean> {
+): Promise<boolean | "back"> {
   for (const [pkgName, details] of state.entries()) {
     const createTag = await p.confirm({
       message: t().tagMessages.createTagQuestion(color.cyan(pkgName), color.green(details.newVersion)),
@@ -26,6 +26,7 @@ export async function promptTagMessages(
           { value: "auto",   label: t().tagMessages.useAuto },
           { value: "append", label: t().tagMessages.appendText },
           { value: "custom", label: t().tagMessages.writeCustom },
+          { value: "back",   label: t().tagMessages.goBack },
         ],
       });
 
@@ -33,6 +34,8 @@ export async function promptTagMessages(
         p.cancel(t().tagMessages.cancelled);
         return false;
       }
+
+      if (msgAction === "back") return "back";
 
       if (msgAction === "auto") {
         state.get(pkgName)!.tagMessage = details.tagMessage;
