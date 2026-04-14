@@ -63,3 +63,7 @@
 ## [1.3.0-alpha.1](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.0...@fethabo/tagman@1.3.0-alpha.1) (2026-04-14)
 
 * **feat:** agregado soporte para prereleases. fix: corregido backs en algunos steps. update texts @fethabo 0470fab
+
+## [1.3.0-alpha.2](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.1...@fethabo/tagman@1.3.0-alpha.2) (2026-04-14)
+
+* **fix:** corregido texto del menu @fethabo a7ee300
