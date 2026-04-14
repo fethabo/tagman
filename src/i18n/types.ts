@@ -4,6 +4,27 @@ export type Messages = {
     bye: string;
     error: string;
   };
+  menu: {
+    question: string;
+    createRelease: string;
+    createReleaseHint: string;
+    githubRelease: string;
+    githubReleaseHint: string;
+    exit: string;
+  };
+  githubRelease: {
+    noConfig: string;
+    noToken: string;
+    noRemote: string;
+    noTags: string;
+    loadingTags: string;
+    tagsLoaded: (count: number) => string;
+    selectTags: string;
+    cancelled: string;
+    creating: string;
+    done: (count: number) => string;
+    failed: (tag: string, msg: string) => string;
+  };
   checkpoint: {
     uncommittedWarning: string;
     uncommittedQuestion: string;
@@ -19,6 +40,7 @@ export type Messages = {
     scanning: string;
     scanDone: (total: number, found: number) => string;
     nothingToRelease: string;
+    nothingToReleaseMenu: string;
     selectPackages: string;
     noMatchingPackages: (filter: string) => string;
     selectCommits: (pkg: string) => string;
@@ -26,6 +48,8 @@ export type Messages = {
     goBack: string;
     goBackToPackages: string;
     selectExtraCommits: (pkg: string) => string;
+    selectAll: string;
+    deselectAll: string;
     showDetails: string;
     hideDetails: string;
     customVersion: (pkg: string) => string;
@@ -41,6 +65,7 @@ export type Messages = {
     appendText: string;
     writeCustom: string;
     goBack: string;
+    goBackToAction: string;
     appendInput: string;
     insertPosition: string;
     insertBefore: string;

@@ -8,6 +8,7 @@ import { getDependents, type WorkspacePackage } from "../../../core/workspace.js
 import type { ReleaseState } from "../../../core/checkpoint.js";
 import type { TagmanConfig } from "../../../config.js";
 import { commitMultiSelect, COMMIT_BACK } from "../commit-multiselect.js";
+import { wizardSelect, SELECT_BACK } from "../wizard-select.js";
 import { t } from "../../../i18n/index.js";
 
 export type PackageInfo = {
@@ -27,7 +28,7 @@ export async function scanAndSelectPackages(
   allPackages: WorkspacePackage[],
   config: TagmanConfig,
   options: ScanOptions = {}
-): Promise<Map<string, ReleaseState> | null | "back"> {
+): Promise<Map<string, ReleaseState> | null | "back" | "no-commits"> {
   const { packages: pkgFilter, bump: globalBump, yes = false } = options;
   const packagesWithCommits: PackageInfo[] = [];
 
@@ -48,8 +49,7 @@ export async function scanAndSelectPackages(
   spinner.stop(t().scan.scanDone(allPackages.length, packagesWithCommits.length));
 
   if (packagesWithCommits.length === 0) {
-    p.outro(t().scan.nothingToRelease);
-    return null;
+    return "no-commits";
   }
 
   // Step 1: Select packages
@@ -162,25 +162,25 @@ export async function scanAndSelectPackages(
       if (globalBump) {
         bump = globalBump;
       } else {
-        const result = await p.select({
-          message: `${t().scan.selectBump(pkgName, pkgInfo.pkg.manifest.version)} ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
-          options: [
+        const result = await wizardSelect(
+          `${t().scan.selectBump(pkgName, pkgInfo.pkg.manifest.version)} ${color.cyan(pkgName)} (Current: ${pkgInfo.pkg.manifest.version})`,
+          [
             { value: "patch", label: `Patch (${semver.inc(pkgInfo.pkg.manifest.version, "patch")})`, hint: suggested === "patch" ? "suggested" : undefined },
             { value: "minor", label: `Minor (${semver.inc(pkgInfo.pkg.manifest.version, "minor")})`, hint: suggested === "minor" ? "suggested" : undefined },
             { value: "major", label: `Major (${semver.inc(pkgInfo.pkg.manifest.version, "major")})`, hint: suggested === "major" ? "suggested" : undefined },
-            { value: "none", label: `No incrementar (solo Git Tag: ${pkgInfo.pkg.manifest.version})` },
+            { value: "none",   label: `No incrementar (solo Git Tag: ${pkgInfo.pkg.manifest.version})` },
             { value: "custom", label: `Definir una versión específica...` },
-            { value: "back", label: t().scan.goBack },
           ],
-          initialValue: suggested,
-        });
+          suggested,
+          t().scan.goBack,
+        );
 
         if (p.isCancel(result)) {
           p.cancel(t().scan.cancelled);
           return null;
         }
 
-        if (result === "back") {
+        if (result === SELECT_BACK) {
           goBackToCommits = true;
           continue;
         }

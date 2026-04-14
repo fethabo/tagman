@@ -112,6 +112,35 @@ export async function pushRelease(): Promise<void> {
 }
 
 /**
+ * List all local git tags, sorted by version descending.
+ * Optionally filtered by a glob pattern (e.g. "my-pkg@*").
+ */
+export async function listAllTags(pattern?: string): Promise<string[]> {
+  try {
+    const args = pattern
+      ? ["tag", "-l", pattern, "--sort=-v:refname"]
+      : ["tag", "-l", "--sort=-v:refname"];
+    const output = await git.raw(args);
+    return output.split("\n").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get the annotation body of an annotated tag.
+ * Falls back to empty string if the tag is lightweight or not found.
+ */
+export async function getTagAnnotation(tagName: string): Promise<string> {
+  try {
+    const raw = await git.raw(["tag", "-l", "--format=%(contents)", tagName]);
+    return raw.trim();
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Parse the GitHub owner and repo from the origin remote URL.
  * Supports HTTPS (https://github.com/owner/repo.git) and SSH (git@github.com:owner/repo.git).
  * Returns null if origin is not a GitHub remote or cannot be parsed.

@@ -1,6 +1,7 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import type { ReleaseState } from "../../../core/checkpoint.js";
+import { wizardSelect, SELECT_BACK } from "../wizard-select.js";
 import { t } from "../../../i18n/index.js";
 
 export async function promptTagMessages(
@@ -20,58 +21,71 @@ export async function promptTagMessages(
     if (createTag) {
       p.note(details.tagMessage, `${t().tagMessages.autoGenLabel} ${pkgName}`);
 
-      const msgAction = await p.select({
-        message: t().tagMessages.actionSelect,
-        options: [
-          { value: "auto",   label: t().tagMessages.useAuto },
-          { value: "append", label: t().tagMessages.appendText },
-          { value: "custom", label: t().tagMessages.writeCustom },
-          { value: "back",   label: t().tagMessages.goBack },
-        ],
-      });
+      let redoAction = false;
+      do {
+        redoAction = false;
 
-      if (p.isCancel(msgAction)) {
-        p.cancel(t().tagMessages.cancelled);
-        return false;
-      }
-
-      if (msgAction === "back") return "back";
-
-      if (msgAction === "auto") {
-        state.get(pkgName)!.tagMessage = details.tagMessage;
-      } else if (msgAction === "append") {
-        const appendedMsg = await p.text({ message: t().tagMessages.appendInput });
-        if (p.isCancel(appendedMsg)) {
-          p.cancel(t().tagMessages.cancelled);
-          return false;
-        }
-
-        const position = await p.select({
-          message: t().tagMessages.insertPosition,
-          options: [
-            { value: "before", label: t().tagMessages.insertBefore },
-            { value: "after",  label: t().tagMessages.insertAfter },
+        const msgAction = await wizardSelect(
+          t().tagMessages.actionSelect,
+          [
+            { value: "auto",   label: t().tagMessages.useAuto },
+            { value: "append", label: t().tagMessages.appendText },
+            { value: "custom", label: t().tagMessages.writeCustom },
           ],
-        });
+          undefined,
+          t().tagMessages.goBack,
+        );
 
-        if (p.isCancel(position)) {
+        if (p.isCancel(msgAction)) {
           p.cancel(t().tagMessages.cancelled);
           return false;
         }
 
-        if (position === "before") {
-          state.get(pkgName)!.tagMessage = details.tagMessage.replace("\n\n", `\n\n${appendedMsg as string}\n\n`);
-        } else {
-          state.get(pkgName)!.tagMessage = details.tagMessage + "\n\n" + (appendedMsg as string);
+        if (msgAction === SELECT_BACK) return "back";
+
+        if (msgAction === "auto") {
+          state.get(pkgName)!.tagMessage = details.tagMessage;
+        } else if (msgAction === "append") {
+          const appendedMsg = await p.text({ message: t().tagMessages.appendInput });
+          if (p.isCancel(appendedMsg)) {
+            p.cancel(t().tagMessages.cancelled);
+            return false;
+          }
+
+          const position = await wizardSelect(
+            t().tagMessages.insertPosition,
+            [
+              { value: "before", label: t().tagMessages.insertBefore },
+              { value: "after",  label: t().tagMessages.insertAfter },
+            ],
+            undefined,
+            t().tagMessages.goBackToAction,
+          );
+
+          if (p.isCancel(position)) {
+            p.cancel(t().tagMessages.cancelled);
+            return false;
+          }
+
+          if (position === SELECT_BACK) {
+            redoAction = true;
+            continue;
+          }
+
+          if (position === "before") {
+            state.get(pkgName)!.tagMessage = details.tagMessage.replace("\n\n", `\n\n${appendedMsg as string}\n\n`);
+          } else {
+            state.get(pkgName)!.tagMessage = details.tagMessage + "\n\n" + (appendedMsg as string);
+          }
+        } else if (msgAction === "custom") {
+          const customMsg = await p.text({ message: t().tagMessages.customInput });
+          if (p.isCancel(customMsg)) {
+            p.cancel(t().tagMessages.cancelled);
+            return false;
+          }
+          state.get(pkgName)!.tagMessage = customMsg as string;
         }
-      } else if (msgAction === "custom") {
-        const customMsg = await p.text({ message: t().tagMessages.customInput });
-        if (p.isCancel(customMsg)) {
-          p.cancel(t().tagMessages.cancelled);
-          return false;
-        }
-        state.get(pkgName)!.tagMessage = customMsg as string;
-      }
+      } while (redoAction);
     } else {
       state.get(pkgName)!.tagMessage = ""; // Empty string implies no tag
     }

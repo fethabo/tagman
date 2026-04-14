@@ -10,16 +10,16 @@ export const COMMIT_BACK = Symbol('commitSelectBack');
 /**
  * Interactive multiselect for commits.
  *
- * Virtual controls at the top of the list:
- *   ◆ Select All   — selects all real commits
- *   ◇ Deselect All — clears the selection
+ * The list contains only real commits. All controls are keyboard shortcuts
+ * shown in a hint line at the bottom:
  *
- * Keyboard shortcuts shown in a hint line below the list:
- *   d         — toggle date & author display per commit (reads CommitOpt.details)
- *   ← (left)  — go back to package selection (only when goBackLabel is provided)
+ *   a         — select all commits
+ *   n         — deselect all commits (none)
+ *   d         — toggle date & author inline (reads CommitOpt.details)
+ *   b         — go back to package selection (only when goBackLabel is provided)
  *
  * Parameters:
- *   goBackLabel  — when set, enables the ← shortcut and shows it in the hint line
+ *   goBackLabel  — when set, enables the [b] shortcut and shows it in the hint line
  *   allowEmpty   — when true, skips the "select at least one" validation (for optional extras)
  */
 export async function commitMultiSelect(
@@ -29,17 +29,9 @@ export async function commitMultiSelect(
   goBackLabel?: string,
   allowEmpty?: boolean,
 ): Promise<string[] | symbol | typeof COMMIT_BACK> {
-  const SELECT_ALL   = '__tagman_select_all__';
-  const DESELECT_ALL = '__tagman_deselect_all__';
   const GO_BACK      = '__tagman_go_back__';
   const commitValues = options.map(o => o.value);
-  const CONTROLS     = [SELECT_ALL, DESELECT_ALL];
-
-  const allOptions: CommitOpt[] = [
-    { value: SELECT_ALL,   label: `${color.green('◆')} Select All`   },
-    { value: DESELECT_ALL, label: `${color.yellow('◇')} Deselect All` },
-    ...options,
-  ];
+  const allOptions   = [...options];
 
   let showDetails = false;
 
@@ -60,8 +52,7 @@ export async function commitMultiSelect(
     initialValues,
     validate(value) {
       if (allowEmpty) return;
-      const real = (value ?? []).filter(v => !CONTROLS.includes(v));
-      if (real.length === 0) return 'Select at least one commit.';
+      if (!value || value.length === 0) return 'Select at least one commit.';
     },
     render() {
       const val: string[]  = (this as any).value ?? [];
@@ -80,7 +71,7 @@ export async function commitMultiSelect(
       switch (this.state) {
         case 'submit': {
           const chosen = allOptions
-            .filter(o => val.includes(o.value) && !CONTROLS.includes(o.value))
+            .filter(o => val.includes(o.value))
             .map(o => color.dim(o.label))
             .join(color.dim(', ')) || color.dim('none');
           return `${header}${color.gray(p.S_BAR)}  ${chosen}\n`;
@@ -94,10 +85,12 @@ export async function commitMultiSelect(
         }
         default: {
           const hintParts: string[] = [
+            `${color.dim('[a]')} ${color.dim(t().scan.selectAll)}`,
+            `${color.dim('[n]')} ${color.dim(t().scan.deselectAll)}`,
             `${color.dim('[d]')} ${color.dim(showDetails ? t().scan.hideDetails : t().scan.showDetails)}`,
           ];
           if (goBackLabel !== undefined) {
-            hintParts.push(`${color.dim('[←]')} ${color.dim(t().scan.goBackToPackages)}`);
+            hintParts.push(`${color.dim('[b]')} ${color.dim(t().scan.goBackToPackages)}`);
           }
           const hint = hintParts.join(`  ${color.dim('·')}  `);
           const items = p.limitOptions({ cursor, options: allOptions, columnPadding: bar.length, rowPadding: rowCount + 3, style });
@@ -107,30 +100,21 @@ export async function commitMultiSelect(
     },
   });
 
-  // Cursor event: handle SELECT_ALL / DESELECT_ALL after the built-in toggleValue.
-  (prompt as any).on('cursor', (action: string) => {
-    if (action !== 'space') return;
-    const cursor: number = (prompt as any).cursor;
-    const current = allOptions[cursor]?.value;
-    if (current === SELECT_ALL) {
-      (prompt as any).value = commitValues.slice();
-    } else if (current === DESELECT_ALL) {
-      (prompt as any).value = [];
-    } else {
-      (prompt as any).value = ((prompt as any).value ?? []).filter(
-        (v: string) => !CONTROLS.includes(v)
-      );
-    }
-  });
-
-  // Key event: handle d (toggle details) and ← (go back).
+  // Key event: all shortcuts handled here.
   (prompt as any).on('key', (char: string, key: { name?: string }) => {
-    if (char === 'd') {
-      showDetails = !showDetails;
-      // render() re-runs automatically as part of the keypress cycle
+    if (char === 'a') {
+      (prompt as any).value = commitValues.slice();
       return;
     }
-    if (key?.name === 'left' && goBackLabel !== undefined) {
+    if (char === 'n') {
+      (prompt as any).value = [];
+      return;
+    }
+    if (char === 'd') {
+      showDetails = !showDetails;
+      return;
+    }
+    if (char === 'b' && goBackLabel !== undefined) {
       (prompt as any).value = [GO_BACK];
       (prompt as any).state = 'submit';
       (prompt as any).close();
@@ -140,5 +124,5 @@ export async function commitMultiSelect(
   const result = await (prompt as any).prompt();
   if (Array.isArray(result) && result.includes(GO_BACK)) return COMMIT_BACK;
   if (p.isCancel(result)) return result;
-  return (result as string[]).filter(v => !CONTROLS.includes(v));
+  return result as string[];
 }
