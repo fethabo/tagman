@@ -39,6 +39,8 @@ Unlike fully automated semantic release tools, **tagman** doesn't execute destru
 - **GitHub Releases**: Automatically creates one GitHub Release per package after tagging.
 - **NPM Publishing**: Native support for publishing packages directly to the npm registry after tagging.
 - **Plugin System**: Extend tagman with custom logic via an `afterRelease` hook.
+- **Remote Sync Check**: Before scanning, tagman fetches remote tracking info and warns you if the local branch is behind origin — preventing tags on stale code.
+- **Partial Commit Selection with Reorder**: When you deselect recent commits for a package, tagman detects the situation and offers to reorder the git history so the tag points to the selected code state — keeping skipped commits available for future scans.
 - **i18n**: Interface available in English and Spanish (`--lang en|es`).
 
 ### Quick Start
@@ -90,6 +92,7 @@ tagman reads an optional `tagman.config.json` file from your project root. Witho
   "workspace": "pnpm",
   "packagesRoutes": [],
   "annotationMessage": "",
+  "requireRemoteSync": false,
   "github": {
     "createRelease": false,
     "token": "",
@@ -109,6 +112,7 @@ tagman reads an optional `tagman.config.json` file from your project root. Witho
 | `workspace` | `"pnpm" \| "npm" \| "yarn" \| "bun"` | `"pnpm"` | Package manager used to detect workspace packages |
 | `packagesRoutes` | `string[]` | — | Explicit glob patterns to find packages. **Overrides workspace auto-detection.** |
 | `annotationMessage` | `string` | — | Prefix text added to every generated tag annotation |
+| `requireRemoteSync` | `boolean` | `false` | When `true`, blocks the release if the local branch is behind origin (instead of just warning) |
 | `github.createRelease` | `boolean` | `false` | Create a GitHub Release per package after push |
 | `github.token` | `string` | — | GitHub token. Falls back to `GITHUB_TOKEN` env var |
 | `github.prerelease` | `boolean` | `false` | Mark GitHub Releases as pre-release |
@@ -178,6 +182,32 @@ Tag message review (Step 5)
       ↕ (back option)
 ← back to Package selection
 ```
+
+### Partial Commit Selection & Reordering
+
+When you deselect the most recent commits for a package in Step 2, those commits are **trailing** — they sit between your last selected commit and `HEAD`. This creates two problems:
+
+1. The tag always lands at `HEAD`, so it includes the trailing commits' code even though you excluded them from the changelog.
+2. The next scan finds nothing for that package (`git log <new-tag>..HEAD` is empty because the tag is at `HEAD`).
+
+tagman detects this automatically and shows a prompt with three options:
+
+| Option | Behavior |
+|--------|----------|
+| **Reorder** | Temporarily removes trailing commits from history, creates the release commit at the correct code state, then re-applies the trailing commits on top. The tag points exactly to the selected code. Trailing commits remain available for the next release scan. Only shown when all trailing commits are unpushed (safe to rewrite). |
+| **Add them to this release** | Merges the trailing commits into your selection — they appear in the changelog and the tag is placed normally at `HEAD`. |
+| **Continue anyway** | Proceeds as-is. The tag code includes trailing commits; they won't appear in future scans. |
+
+**After a reorder, git history looks like this:**
+
+```
+Before:  ... → commit-B (selected) → commit-C (trailing) ← HEAD
+After:   ... → commit-B → [release commit + tag] → commit-C' ← HEAD
+```
+
+`commit-C'` is commit-C re-applied via `git cherry-pick`, with the same message and author. On the next `tagman` run, it will appear as a pending commit.
+
+> **Note:** The reorder option is only available when the trailing commits have not been pushed to origin. Once commits are pushed, rewriting history would require a force-push, which tagman does not do.
 
 ### CLI Commands & Flags
 
@@ -383,14 +413,49 @@ tagman github-release --lang en
 
 ---
 
-#### Walkthrough 4: Cascade dependency release
+#### Walkthrough 4: Pre-release branch workflow
+
+You work on a feature branch and want to ship incremental pre-release versions during development, then graduate to a stable release when you merge to `main`.
+
+```bash
+git checkout -b feature/inscripciones
+# ... several commits ...
+tagman release
+```
+
+1. **Step 2** — Select the commits you want in this pre-release.
+2. **Step 3** — Choose **pre-release ▸** → **preminor** → channel selector appears.
+3. Because you're on a non-default branch, **`inscripciones`** appears at the top of the channel list (labeled "current branch"). Select it.
+4. tagman creates `my-pkg@1.3.0-inscripciones.0` — the tag points to your selected commit's code state.
+
+A few more commits later:
+
+```bash
+tagman release
+```
+
+5. tagman detects the current version is `1.3.0-inscripciones.0` (a pre-release) and auto-suggests **increment counter** → creates `my-pkg@1.3.0-inscripciones.1`.
+
+After merging to `main`:
+
+```bash
+git checkout main && git merge feature/inscripciones
+tagman release
+```
+
+6. **Step 3** — tagman detects `1.3.0-inscripciones.1` and shows **graduate to stable → `1.3.0`** as the first option.
+7. Confirm → `my-pkg@1.3.0` is created. The GitHub Release is automatically marked as a full release (not pre-release).
+
+---
+
+#### Walkthrough 5: Cascade dependency release
 
 You have `ui-kit` (dependency) and `web-app` (consumer). After releasing `ui-kit@2.0.0`:
 
 1. Run `tagman release`, select `ui-kit`.
 2. Pick commits, select `major` bump → new version `2.0.0`.
 3. tagman detects `web-app` has `"ui-kit": "^1.x"` in its `package.json`.
-4. It asks: *"ui-kit is a dependency of web-app. Do you want to also version web-app?"*
+4. It asks: *"ui-kit is a dependency of web-app. Do you want to also version web-app to update its reference?"*
 5. Confirm. tagman queues `web-app` for a patch bump (updating the dependency reference).
 6. Both packages are committed and tagged in a single release commit.
 
@@ -431,6 +496,8 @@ A diferencia de las herramientas de *semantic release* completamente automatizad
 - **GitHub Releases**: Crea automáticamente un GitHub Release por paquete tras el push.
 - **Publicación en NPM**: Soporte nativo para publicar paquetes en el registro de npm tras el tagging.
 - **Sistema de Plugins**: Extendé tagman con lógica personalizada mediante el hook `afterRelease`.
+- **Verificación de Sincronización Remota**: Antes de escanear, tagman consulta el estado del remoto y te avisa si tu rama local está desactualizada respecto a origin — evitando tags sobre código que no incluye los últimos cambios.
+- **Selección Parcial con Reordenamiento**: Cuando desseleccionás los commits más recientes de un paquete, tagman detecta la situación y ofrece reordenar el historial de git para que el tag apunte al estado exacto del código seleccionado — preservando los commits omitidos para futuros escaneos.
 - **i18n**: Interfaz disponible en español e inglés (`--lang es|en`).
 
 ### Inicio Rápido
@@ -482,6 +549,7 @@ tagman lee un archivo opcional `tagman.config.json` en la raíz de tu proyecto. 
   "workspace": "pnpm",
   "packagesRoutes": [],
   "annotationMessage": "",
+  "requireRemoteSync": false,
   "github": {
     "createRelease": false,
     "token": "",
@@ -501,6 +569,7 @@ tagman lee un archivo opcional `tagman.config.json` en la raíz de tu proyecto. 
 | `workspace` | `"pnpm" \| "npm" \| "yarn" \| "bun"` | `"pnpm"` | Gestor de paquetes utilizado para detectar los paquetes del workspace |
 | `packagesRoutes` | `string[]` | — | Patrones glob para encontrar paquetes. **Tiene prioridad sobre la detección automática de workspace.** |
 | `annotationMessage` | `string` | — | Texto prefijo agregado a la anotación de cada tag generado |
+| `requireRemoteSync` | `boolean` | `false` | Cuando es `true`, bloquea el release si la rama local está desactualizada respecto a origin (en lugar de solo advertir) |
 | `github.createRelease` | `boolean` | `false` | Crear un GitHub Release por paquete luego del push |
 | `github.token` | `string` | — | Token de GitHub. Si no se especifica, usa la variable de entorno `GITHUB_TOKEN` |
 | `github.prerelease` | `boolean` | `false` | Marcar los GitHub Releases como pre-release |
@@ -570,6 +639,32 @@ Revisión de mensajes de tag (Paso 5)
       ↕ (opción "volver")
 ← de vuelta a Selección de paquetes
 ```
+
+### Selección Parcial de Commits y Reordenamiento
+
+Cuando desseleccionás los commits más recientes de un paquete en el Paso 2, esos commits son **trailing** (rezagados) — están entre tu último commit seleccionado y `HEAD`. Esto genera dos problemas:
+
+1. El tag siempre queda en `HEAD`, por lo que incluye el código de los commits rezagados aunque los hayas excluido del changelog.
+2. El próximo escaneo no los encuentra (`git log <nuevo-tag>..HEAD` está vacío porque el tag quedó en `HEAD`).
+
+tagman lo detecta automáticamente y muestra un prompt con tres opciones:
+
+| Opción | Comportamiento |
+|--------|----------------|
+| **Reordenar** | Elimina temporalmente los commits rezagados del historial, crea el commit de release en el estado correcto del código y luego re-aplica los commits rezagados encima. El tag apunta exactamente al código seleccionado. Los commits rezagados quedan disponibles para el próximo escaneo. Solo se muestra cuando los commits rezagados aún no fueron pusheados (seguro reescribir). |
+| **Agregarlos a este release** | Incorpora los commits rezagados a tu selección — aparecen en el changelog y el tag se ubica normalmente en `HEAD`. |
+| **Continuar igual** | Continúa como estaba. El código del tag incluye los commits rezagados; no aparecerán en futuros escaneos. |
+
+**Después de un reordenamiento, el historial git queda así:**
+
+```
+Antes:   ... → commit-B (seleccionado) → commit-C (rezagado) ← HEAD
+Después: ... → commit-B → [commit de release + tag] → commit-C' ← HEAD
+```
+
+`commit-C'` es el commit-C re-aplicado via `git cherry-pick`, con el mismo mensaje y autor. En el próximo `tagman`, aparecerá como commit pendiente.
+
+> **Nota:** La opción de reordenamiento solo está disponible cuando los commits rezagados no fueron pusheados a origin. Una vez pusheados, reescribir el historial requeriría un force-push, lo cual tagman no hace.
 
 ### Comandos y Flags de CLI
 
@@ -775,7 +870,42 @@ tagman github-release
 
 ---
 
-#### Guía 4: Release con versionado en cascada
+#### Guía 4: Flujo de pre-release en rama
+
+Trabajás en una rama de feature y querés generar versiones pre-release incrementales durante el desarrollo, para luego graduar a estable cuando mergeás a `main`.
+
+```bash
+git checkout -b feature/inscripciones
+# ... varios commits ...
+tagman release
+```
+
+1. **Paso 2** — Seleccioná los commits que querés incluir en este pre-release.
+2. **Paso 3** — Elegí **pre-release ▸** → **preminor** → aparece el selector de canal.
+3. Como estás en una rama que no es la default, **`inscripciones`** aparece al tope de la lista de canales (etiquetada como "rama actual"). Seleccionala.
+4. tagman crea `my-pkg@1.3.0-inscripciones.0` — el tag apunta al estado exacto del código seleccionado.
+
+Unos commits más tarde:
+
+```bash
+tagman release
+```
+
+5. tagman detecta que la versión actual es `1.3.0-inscripciones.0` (pre-release) y sugiere automáticamente **incrementar contador** → crea `my-pkg@1.3.0-inscripciones.1`.
+
+Después del merge a `main`:
+
+```bash
+git checkout main && git merge feature/inscripciones
+tagman release
+```
+
+6. **Paso 3** — tagman detecta `1.3.0-inscripciones.1` y muestra **graduar a estable → `1.3.0`** como primera opción.
+7. Confirmás → se crea `my-pkg@1.3.0`. El GitHub Release se marca automáticamente como release completo (no pre-release).
+
+---
+
+#### Guía 5: Release con versionado en cascada
 
 Tenés `ui-kit` (dependencia) y `web-app` (consumidor). Tras lanzar `ui-kit@2.0.0`:
 
