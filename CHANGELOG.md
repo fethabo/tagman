@@ -71,3 +71,8 @@
 ## [1.3.0-alpha.3](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.2...@fethabo/tagman@1.3.0-alpha.3) (2026-04-15)
 
 * agregado get de nombre de branch por defecto para los prereleases @fethabo 210c2c3
+
+## [1.3.0-alpha.4](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.3...@fethabo/tagman@1.3.0-alpha.4) (2026-04-15)
+
+* **docs:** update readme @fethabo 18d440c
+* **feat:** agregada verificacion de cambios remota. feat: agregada vinculación del tag directamente con el ultimo commit seleccionado. De esta forma pueden realizarse tags sobre commits viejos, garantizando que el snapshot de código de ese tag sea el codigo del último commit seleccionado (cronológicamente) @fethabo c3810e1
