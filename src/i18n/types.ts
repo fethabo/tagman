@@ -80,6 +80,9 @@ export type Messages = {
     trailingGoBack: string;
     graduationFound: (count: number) => string;
     graduationHint: (version: string) => string;
+    zeroCommitsGraduate: (pkg: string, version: string) => string;
+    graduationBlockedPushed: string;
+    graduationBlockedReorder: string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;

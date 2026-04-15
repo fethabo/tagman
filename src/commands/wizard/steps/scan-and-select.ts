@@ -120,15 +120,19 @@ export async function scanAndSelectPackages(
       continue;
     }
 
+    const currentVersion = pkgInfo.pkg.manifest.version;
+    const isCurrentPrerelease = semver.prerelease(currentVersion) !== null;
     let goBackToCommits = false;
     let chosenCommits: CommitInfo[] = [];
     let bump: string = "";
     let prereleaseChannel: string | undefined;
     let liftCommits: string[] | undefined = undefined;
+    let isGraduationMode = false;
 
     do {
       goBackToCommits = false;
       liftCommits = undefined;
+      isGraduationMode = false;
 
       // Step 2: Path-specific commit selection
       if (globalBump !== undefined || yes) {
@@ -147,6 +151,7 @@ export async function scanAndSelectPackages(
           })),
           pkgInfo.commits.map(c => c.hash),
           t().scan.goBackToPackages,
+          isCurrentPrerelease,  // allowEmpty: pre-release packages can submit with 0 commits (graduation)
         );
 
         if (selectedCommitHashes === COMMIT_BACK) return "back";
@@ -160,90 +165,132 @@ export async function scanAndSelectPackages(
           (selectedCommitHashes as string[]).includes(c.hash)
         );
 
-        // Trailing commit detection: commits more recent than the last selected one
-        const selectedSet = new Set(selectedCommitHashes as string[]);
-        const firstSelectedIdx = pkgInfo.commits.findIndex(c => selectedSet.has(c.hash));
-        const trailingCommits = firstSelectedIdx > 0 ? pkgInfo.commits.slice(0, firstSelectedIdx) : [];
-
-        if (trailingCommits.length > 0) {
-          const mostRecentSelectedHash = pkgInfo.commits[firstSelectedIdx].hash;
-          const liftRaw = await git.raw(["log", "--format=%H", `${mostRecentSelectedHash}..HEAD`]);
-          const computedLiftCommits = liftRaw.trim().split("\n").filter(Boolean).reverse();
+        if (selectedPathCommits.length === 0 && isCurrentPrerelease) {
+          // Zero commits selected on a pre-release → offer graduation at the pre-release tag's code state.
+          // The intervening commits must be lifted (reset + cherry-pick), same as trailing-commit reorder.
+          const liftRaw = await git.raw(["log", "--format=%H", `${pkgInfo.lastTag}..HEAD`]);
+          const computedLiftCommits = liftRaw.trim().split("\n").filter(Boolean).reverse(); // oldest-first
 
           const branch = await getCurrentBranch();
           const notPushed = await getNotPushedHashes(branch);
           const allLiftNotPushed = notPushed === null || computedLiftCommits.every(h => notPushed.has(h));
-          const canReorder = !hasReorder && allLiftNotPushed && computedLiftCommits.length > 0;
 
-          p.log.warn(t().scan.trailingCommitsWarning(trailingCommits.length));
-          for (const c of trailingCommits) {
-            p.log.message(`  ${color.dim(c.hash.substring(0, 7))} ${c.message}`);
-          }
-
-          const trailingOptions: { value: string; label: string }[] = [
-            ...(canReorder ? [{ value: "reorder", label: t().scan.trailingReorder }] : []),
-            { value: "add",      label: t().scan.trailingAddAll },
-            { value: "continue", label: t().scan.trailingContinue },
-            { value: "back",     label: t().scan.trailingGoBack },
-          ];
-
-          const trailingAction = await wizardSelect(
-            t().scan.trailingCommitsQuestion,
-            trailingOptions,
-            canReorder ? "reorder" : "add",
-            undefined,
-          );
-
-          if (p.isCancel(trailingAction)) {
-            p.cancel(t().scan.cancelled);
-            return null;
-          }
-          if (trailingAction === "back") {
+          if (!allLiftNotPushed) {
+            p.log.warn(t().scan.graduationBlockedPushed);
             goBackToCommits = true;
             continue;
           }
-          if (trailingAction === "add") {
-            selectedPathCommits = [...trailingCommits, ...selectedPathCommits];
+          if (hasReorder) {
+            p.log.warn(t().scan.graduationBlockedReorder);
+            goBackToCommits = true;
+            continue;
           }
-          if (trailingAction === "reorder") {
-            liftCommits = computedLiftCommits;
-            hasReorder = true;
-          }
-          // "continue" → proceed as-is; trailing commits will be included in tag code but not changelog
-        }
 
-        // Step 2b: Optional extra commits from outside this package's directory
-        let chosenExtraCommits: CommitInfo[] = [];
-        if (pkgInfo.extraCommits.length > 0) {
-          const extraHashes = await commitMultiSelect(
-            `${t().scan.selectExtraCommits(pkgName)} ${color.cyan(pkgName)}`,
-            pkgInfo.extraCommits.map(c => ({
-              value: c.hash,
-              label: `${c.hash.substring(0, 7)} - ${c.message}`,
-              details: `${c.date} · ${c.author_name}`,
-            })),
-            [],           // none pre-selected
-            undefined,    // no go-back shortcut in step 2b
-            true,         // allowEmpty — this step is optional
-          );
-
-          if (p.isCancel(extraHashes)) {
+          const confirm = await p.confirm({
+            message: t().scan.zeroCommitsGraduate(pkgName, currentVersion),
+            initialValue: true,
+          });
+          if (p.isCancel(confirm)) {
             p.cancel(t().scan.cancelled);
             return null;
           }
+          if (!confirm) {
+            goBackToCommits = true;
+            continue;
+          }
 
-          chosenExtraCommits = pkgInfo.extraCommits.filter(c =>
-            (extraHashes as string[]).includes(c.hash)
-          );
+          // Graduation confirmed: CHANGELOG uses full pre-release cycle commits
+          const lastStableTag = await getLastStableTagForPackage(pkgInfo.pkg.manifest.name);
+          const cycleCommits = await getCommitsForPath(pkgInfo.pkg.dir, lastStableTag);
+          chosenCommits = cycleCommits;
+          liftCommits = computedLiftCommits.length > 0 ? computedLiftCommits : undefined;
+          hasReorder = true;
+          isGraduationMode = true;
+          // Skip trailing detection and Step 2b — fall through to Step 3
+        } else {
+          // Trailing commit detection: commits more recent than the last selected one
+          const selectedSet = new Set(selectedCommitHashes as string[]);
+          const firstSelectedIdx = pkgInfo.commits.findIndex(c => selectedSet.has(c.hash));
+          const trailingCommits = firstSelectedIdx > 0 ? pkgInfo.commits.slice(0, firstSelectedIdx) : [];
+
+          if (trailingCommits.length > 0) {
+            const mostRecentSelectedHash = pkgInfo.commits[firstSelectedIdx].hash;
+            const liftRaw = await git.raw(["log", "--format=%H", `${mostRecentSelectedHash}..HEAD`]);
+            const computedLiftCommits = liftRaw.trim().split("\n").filter(Boolean).reverse();
+
+            const branch = await getCurrentBranch();
+            const notPushed = await getNotPushedHashes(branch);
+            const allLiftNotPushed = notPushed === null || computedLiftCommits.every(h => notPushed.has(h));
+            const canReorder = !hasReorder && allLiftNotPushed && computedLiftCommits.length > 0;
+
+            p.log.warn(t().scan.trailingCommitsWarning(trailingCommits.length));
+            for (const c of trailingCommits) {
+              p.log.message(`  ${color.dim(c.hash.substring(0, 7))} ${c.message}`);
+            }
+
+            const trailingOptions: { value: string; label: string }[] = [
+              ...(canReorder ? [{ value: "reorder", label: t().scan.trailingReorder }] : []),
+              { value: "add",      label: t().scan.trailingAddAll },
+              { value: "continue", label: t().scan.trailingContinue },
+              { value: "back",     label: t().scan.trailingGoBack },
+            ];
+
+            const trailingAction = await wizardSelect(
+              t().scan.trailingCommitsQuestion,
+              trailingOptions,
+              canReorder ? "reorder" : "add",
+              undefined,
+            );
+
+            if (p.isCancel(trailingAction)) {
+              p.cancel(t().scan.cancelled);
+              return null;
+            }
+            if (trailingAction === "back") {
+              goBackToCommits = true;
+              continue;
+            }
+            if (trailingAction === "add") {
+              selectedPathCommits = [...trailingCommits, ...selectedPathCommits];
+            }
+            if (trailingAction === "reorder") {
+              liftCommits = computedLiftCommits;
+              hasReorder = true;
+            }
+            // "continue" → proceed as-is; trailing commits will be included in tag code but not changelog
+          }
+
+          // Step 2b: Optional extra commits from outside this package's directory
+          let chosenExtraCommits: CommitInfo[] = [];
+          if (pkgInfo.extraCommits.length > 0) {
+            const extraHashes = await commitMultiSelect(
+              `${t().scan.selectExtraCommits(pkgName)} ${color.cyan(pkgName)}`,
+              pkgInfo.extraCommits.map(c => ({
+                value: c.hash,
+                label: `${c.hash.substring(0, 7)} - ${c.message}`,
+                details: `${c.date} · ${c.author_name}`,
+              })),
+              [],           // none pre-selected
+              undefined,    // no go-back shortcut in step 2b
+              true,         // allowEmpty — this step is optional
+            );
+
+            if (p.isCancel(extraHashes)) {
+              p.cancel(t().scan.cancelled);
+              return null;
+            }
+
+            chosenExtraCommits = pkgInfo.extraCommits.filter(c =>
+              (extraHashes as string[]).includes(c.hash)
+            );
+          }
+
+          chosenCommits = [...selectedPathCommits, ...chosenExtraCommits];
         }
-
-        chosenCommits = [...selectedPathCommits, ...chosenExtraCommits];
       }
 
       // Step 3: Version Bump
       const suggested = suggestBump(chosenCommits.map(c => c.message));
-      const currentVersion = pkgInfo.pkg.manifest.version;
-      const isCurrentPrerelease = semver.prerelease(currentVersion) !== null;
       const existingChannel = isCurrentPrerelease
         ? String(semver.prerelease(currentVersion)![0])
         : undefined;
@@ -257,8 +304,8 @@ export async function scanAndSelectPackages(
           const nextPre = semver.inc(currentVersion, "prerelease", existingChannel)!;
           const stableVer = `${semver.major(currentVersion)}.${semver.minor(currentVersion)}.${semver.patch(currentVersion)}`;
           mainBumpOptions.push(
-            { value: "prerelease", label: t().scan.preReleaseIncrement(nextPre), hint: "suggested" },
-            { value: "graduate",   label: t().scan.preReleaseGraduate(stableVer) },
+            { value: "prerelease", label: t().scan.preReleaseIncrement(nextPre), hint: !isGraduationMode ? "suggested" : undefined },
+            { value: "graduate",   label: t().scan.preReleaseGraduate(stableVer), hint: isGraduationMode ? "suggested" : undefined },
           );
         }
 
@@ -274,7 +321,7 @@ export async function scanAndSelectPackages(
         const result = await wizardSelect(
           `${t().scan.selectBump(pkgName, currentVersion)} ${color.cyan(pkgName)} (Current: ${currentVersion})`,
           mainBumpOptions,
-          isCurrentPrerelease ? "prerelease" : suggested,
+          isGraduationMode ? "graduate" : (isCurrentPrerelease ? "prerelease" : suggested),
           t().scan.goBack,
         );
 

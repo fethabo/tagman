@@ -82,6 +82,9 @@ export const en: Messages = {
     trailingGoBack: "Go back to commit selection",
     graduationFound: (count) => `Found ${count} package(s) eligible for graduation to stable.`,
     graduationHint: (version) => `no new commits — graduate ${version} to stable`,
+    zeroCommitsGraduate: (pkg, version) => `No commits selected for ${pkg} (${version}). Graduate to stable instead?`,
+    graduationBlockedPushed: "Cannot graduate at this code state: some commits since the pre-release tag have already been pushed.",
+    graduationBlockedReorder: "Cannot graduate: a commit reorder is already in progress for another package in this run.",
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `Create a Git tag for ${pkg}@${version}?`,

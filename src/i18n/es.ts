@@ -82,6 +82,9 @@ export const es: Messages = {
     trailingGoBack: "Volver a selección de commits",
     graduationFound: (count) => `Se encontraron ${count} paquete(s) elegibles para graduar a estable.`,
     graduationHint: (version) => `sin commits nuevos — graduar ${version} a estable`,
+    zeroCommitsGraduate: (pkg, version) => `No se seleccionaron commits para ${pkg} (${version}). ¿Graduar a estable?`,
+    graduationBlockedPushed: "No es posible graduar en este estado: algunos commits desde el tag pre-release ya fueron pusheados.",
+    graduationBlockedReorder: "No es posible graduar: ya hay un reordenamiento en curso para otro paquete en esta ejecución.",
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `¿Crear tag de Git para ${pkg}@${version}?`,
