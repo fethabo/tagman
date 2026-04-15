@@ -80,3 +80,9 @@
 ## [1.3.0-alpha.5](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.4...@fethabo/tagman@1.3.0-alpha.5) (2026-04-15)
 
 * **feat:** agregada posibilidad de manejar tags cuando no hay commits disponibles @fethabo fbf6db3
+
+## [1.3.0-alpha.6](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.5...@fethabo/tagman@1.3.0-alpha.6) (2026-04-15)
+
+* **fix:** corregidos errores que impedian el build @fethabo 3218893
+* **docs:** update readme @fethabo 92a9791
+* **feat:** agregada graduacion de prerelease-tag en flujo de seleccion de commits si no se selecciona ninguno. En este caso se taguea la misma version de codigo del tag, cambiando el tag e insertando el commit de tag junto al anterior. @fethabo 30b8d2a
