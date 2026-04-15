@@ -67,3 +67,7 @@
 ## [1.3.0-alpha.2](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.1...@fethabo/tagman@1.3.0-alpha.2) (2026-04-14)
 
 * **fix:** corregido texto del menu @fethabo a7ee300
+
+## [1.3.0-alpha.3](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.2...@fethabo/tagman@1.3.0-alpha.3) (2026-04-15)
+
+* agregado get de nombre de branch por defecto para los prereleases @fethabo 210c2c3
