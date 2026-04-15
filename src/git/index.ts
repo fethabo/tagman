@@ -9,6 +9,7 @@ export interface CommitInfo {
   message: string;
   body: string;
   author_name: string;
+  author_email: string;
 }
 
 export async function hasUncommittedChanges(): Promise<boolean> {
@@ -67,6 +68,7 @@ export async function getCommitsForPath(path: string, sinceTag: string | null): 
       message: c.message,
       body: c.body,
       author_name: c.author_name,
+      author_email: c.author_email,
     }));
   } catch (error) {
     console.error(`Error getting commits for path ${path}:`, error);
@@ -87,6 +89,7 @@ export async function getRepoCommitsSince(sinceTag: string | null): Promise<Comm
       message: c.message,
       body: c.body,
       author_name: c.author_name,
+      author_email: c.author_email,
     }));
   } catch {
     return [];

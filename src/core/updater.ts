@@ -52,6 +52,11 @@ export async function getRepositoryBaseUrl(): Promise<string> {
   return "";
 }
 
+function extractGitHubUsername(email: string): string | null {
+  const m = email.match(/^(?:\d+\+)?(.+)@users\.noreply\.github\.com$/);
+  return m ? m[1] : null;
+}
+
 export function formatCommitList(commits: CommitInfo[], baseUrl: string): { items: string[], references: string[] } {
   const parsedCommits = commits.map(c => {
     const shortHash = c.hash.substring(0, 7);
@@ -71,10 +76,11 @@ export function formatCommitList(commits: CommitInfo[], baseUrl: string): { item
       formattedMsg = `**${formattedMsg.substring(0, colonIdx + 1)}**${formattedMsg.substring(colonIdx + 1)}`;
     }
 
-    // @username format works automatically in GitHub
+    // @username format works automatically in GitHub — only show when we can extract a real username
     let authorLink = "";
-    if (c.author_name && c.author_name !== "tagman") {
-       authorLink = ` @${c.author_name}`;
+    if (c.author_name !== "tagman") {
+      const username = extractGitHubUsername(c.author_email ?? "");
+      if (username) authorLink = ` @${username}`;
     }
 
     return `* ${formattedMsg}${authorLink} ${hashLink}`;

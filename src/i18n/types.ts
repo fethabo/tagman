@@ -83,6 +83,7 @@ export type Messages = {
     zeroCommitsGraduate: (pkg: string, version: string) => string;
     graduationBlockedPushed: string;
     graduationBlockedReorder: string;
+    extraOnlyHint: string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;

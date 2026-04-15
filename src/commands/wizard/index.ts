@@ -9,6 +9,7 @@ import { promptTagMessages } from "./steps/tag-messages.js";
 import { executeRelease } from "./steps/execute.js";
 import { runGithubReleaseFlow } from "../github-release.js";
 import { setLocale, t, type Locale } from "../../i18n/index.js";
+import { VERSION } from "../../version.js";
 
 export type WizardOptions = {
   dryRun: boolean;
@@ -112,7 +113,7 @@ export const wizardCommand = new Command("release")
     }
 
     console.clear();
-    p.intro(`${color.bgCyan(color.black(" tagman "))} Releaser`);
+    p.intro(`${color.bgCyan(color.black(" tagman "))} Releaser ${color.dim("v" + VERSION)}`);
 
     await runWizardFlow(options);
   });
