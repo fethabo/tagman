@@ -29,7 +29,7 @@ Unlike fully automated semantic release tools, **tagman** doesn't execute destru
 - **Interactive Wizard**: A beautiful CLI experience powered by `@clack/prompts`.
 - **Granular Selection**: Multi-select the exact commits you want to include in each package's release.
 - **Wizard Back Navigation**: Navigate back at any wizard step — from bump selection to commit re-selection, from tag messages to package re-selection, or from commit selection (`b` key) back to the package multiselect — without aborting the operation.
-- **Extra-Directory Commits**: Optionally include commits from outside the package's directory in a release (Step 2b). Useful for shared files dynamically imported across modules with no declared interdependency.
+- **Extra-Directory Commits**: Optionally include commits from outside the package's directory in a release (Step 2b). Useful for shared files dynamically imported across modules with no declared interdependency. Packages that have *no direct commits* but are affected by shared repo commits appear in Step 1 as selectable candidates and skip straight to Step 2b.
 - **Commit Detail Toggle**: Press `d` while selecting commits to reveal timestamps and authors inline; press again to hide.
 - **Auto-Suggested SemVer**: Evaluates your selected commits using conventional commits rules (`feat`, `fix`, `BREAKING CHANGE`) to suggest whether you need a `patch`, `minor`, or `major` bump.
 - **Flexible Bump Options**: Choose `patch`, `minor`, `major`, `none` (tag without changing version), or `custom` (enter any exact SemVer).
@@ -42,6 +42,7 @@ Unlike fully automated semantic release tools, **tagman** doesn't execute destru
 - **Remote Sync Check**: Before scanning, tagman fetches remote tracking info and warns you if the local branch is behind origin — preventing tags on stale code.
 - **Partial Commit Selection with Reorder**: When you deselect recent commits for a package, tagman detects the situation and offers to reorder the git history so the tag points to the selected code state — keeping skipped commits available for future scans.
 - **Pre-release Graduation**: Graduate a pre-release version (e.g. `1.3.0-alpha.5`) to stable (`1.3.0`) in two ways: when there are no new commits since the last pre-release tag, the package is surfaced automatically as a graduation candidate; when new commits exist but you don't want to include them, deselect all commits in the multiselect and tagman uses the reorder mechanism to tag at the exact pre-release code state.
+- **Branch Indicator**: The current git branch is shown in the Step 1 and Step 2 headers so you always know where you're standing.
 - **i18n**: Interface available in English and Spanish (`--lang en|es`).
 
 ### Quick Start
@@ -184,6 +185,20 @@ Tag message review (Step 5)
 ← back to Package selection
 ```
 
+### Packages with Shared-Only Commits
+
+Some packages have no direct commits since their last tag (no files under their directory changed), but repo-wide commits exist that affect them — such as updates to a shared utility or a configuration file imported by multiple modules.
+
+tagman now surfaces these packages in **Step 1** with the hint `no new commits — shared commits available`. Selecting one:
+
+1. **Step 2 is skipped** — there are no path-specific commits to review.
+2. **Step 2b opens directly** — the shared repo commits (commits that touched files outside any package's directory since that package's last tag) appear for optional selection.
+3. Pick the commits you want attributed to this package, then continue to Step 3 as normal.
+
+This is useful for shared libraries, configuration files, or any cross-cutting change that affects a package's runtime behavior without touching its source directory.
+
+---
+
 ### Partial Commit Selection & Reordering
 
 When you deselect the most recent commits for a package in Step 2, those commits are **trailing** — they sit between your last selected commit and `HEAD`. This creates two problems:
@@ -236,7 +251,7 @@ When there are new commits since the pre-release tag but you want to graduate wi
    - The tag is placed there
    - The removed commits are re-applied via `git cherry-pick`
 4. **Step 3** — "Graduate to stable → `1.3.0`" is auto-suggested.
-5. Decline → returns to the commit multiselect to make a different selection.
+5. Decline → Step 2b opens (if shared commits are available for the package), so you can include them in the release. If there are no shared commits, the release proceeds with an empty commit list and you choose the bump in Step 3.
 
 **Git history before and after:**
 
@@ -558,7 +573,7 @@ A diferencia de las herramientas de *semantic release* completamente automatizad
 - **Wizard Interactivo**: Una experiencia de terminal hermosa y limpia impulsada por `@clack/prompts`.
 - **Selección Granular**: Selección múltiple de los commits exactos que deseas incluir en el lanzamiento de cada paquete.
 - **Navegación Hacia Atrás en el Wizard**: Volvé a cualquier paso anterior sin abortar la operación — desde la selección de bump a los commits, desde los mensajes de tag a los paquetes, o desde la selección de commits (tecla `b`) al multiselect de paquetes.
-- **Commits Fuera del Directorio del Paquete**: Incluí opcionalmente commits de fuera del directorio del paquete (Paso 2b). Útil para archivos compartidos importados dinámicamente por módulos sin interdependencia declarada.
+- **Commits Fuera del Directorio del Paquete**: Incluí opcionalmente commits de fuera del directorio del paquete (Paso 2b). Útil para archivos compartidos importados dinámicamente por módulos sin interdependencia declarada. Los paquetes que *no tienen commits directos* pero sí están afectados por commits del repo aparecen en el Paso 1 como candidatos seleccionables y van directo al Paso 2b.
 - **Toggle de Detalle de Commits**: Presioná `d` mientras seleccionás commits para ver fecha y autor en línea; presioná de nuevo para ocultar.
 - **Sugerencia de SemVer**: Evalúa los commits seleccionados bajo las reglas de *conventional commits* para sugerirte si necesitas un incremento `patch`, `minor` o `major`.
 - **Opciones de Bump Flexibles**: Elegí `patch`, `minor`, `major`, `none` (solo tag sin modificar la versión) o `custom` (ingresá cualquier SemVer exacto).
@@ -571,6 +586,7 @@ A diferencia de las herramientas de *semantic release* completamente automatizad
 - **Verificación de Sincronización Remota**: Antes de escanear, tagman consulta el estado del remoto y te avisa si tu rama local está desactualizada respecto a origin — evitando tags sobre código que no incluye los últimos cambios.
 - **Selección Parcial con Reordenamiento**: Cuando desseleccionás los commits más recientes de un paquete, tagman detecta la situación y ofrece reordenar el historial de git para que el tag apunte al estado exacto del código seleccionado — preservando los commits omitidos para futuros escaneos.
 - **Graduación de Pre-release**: Graduá una versión pre-release (ej: `1.3.0-alpha.5`) a su equivalente estable (`1.3.0`) de dos formas: cuando no hay commits nuevos desde el último tag pre-release, el paquete se detecta automáticamente como candidato a graduación; cuando hay commits nuevos pero no los querés incluir, desseleccioná todos en el multiselect y tagman usa el mecanismo de reordenamiento para tagear en el estado exacto del código pre-release.
+- **Indicador de Rama**: La rama de git actual se muestra en los headers del Paso 1 y el Paso 2 para que siempre sepas dónde estás parado.
 - **i18n**: Interfaz disponible en español e inglés (`--lang es|en`).
 
 ### Inicio Rápido
@@ -713,6 +729,20 @@ Revisión de mensajes de tag (Paso 5)
 ← de vuelta a Selección de paquetes
 ```
 
+### Paquetes con Solo Commits Compartidos
+
+Algunos paquetes no tienen commits directos desde su último tag (ningún archivo bajo su directorio cambió), pero existen commits del repo que los afectan — como actualizaciones de una utilidad compartida o un archivo de configuración importado por múltiples módulos.
+
+tagman ahora muestra estos paquetes en el **Paso 1** con el hint `sin commits directos — commits compartidos disponibles`. Al seleccionar uno:
+
+1. **El Paso 2 se omite** — no hay commits propios del paquete para revisar.
+2. **El Paso 2b se abre directamente** — los commits compartidos del repo (que tocaron archivos fuera del directorio de cualquier paquete desde el último tag de ese paquete) aparecen para selección opcional.
+3. Elegí los commits que querés atribuir a este paquete y continuá al Paso 3 normalmente.
+
+Esto es útil para librerías compartidas, archivos de configuración o cualquier cambio transversal que afecte el comportamiento en runtime de un paquete sin tocar su directorio fuente.
+
+---
+
 ### Selección Parcial de Commits y Reordenamiento
 
 Cuando desseleccionás los commits más recientes de un paquete en el Paso 2, esos commits son **trailing** (rezagados) — están entre tu último commit seleccionado y `HEAD`. Esto genera dos problemas:
@@ -765,7 +795,7 @@ Cuando hay commits nuevos desde el tag pre-release pero no querés incluirlos, l
    - El tag se ubica allí
    - Los commits eliminados se re-aplican con `git cherry-pick`
 4. **Paso 3** — "Graduar a estable → `1.3.0`" se auto-sugiere.
-5. Si rechazás → volvés al multiselect de commits para hacer otra selección.
+5. Si rechazás → se abre el Paso 2b (si hay commits compartidos disponibles para el paquete) para que puedas incluirlos en el release. Si no hay commits compartidos, el release continúa con lista vacía y elegís el bump en el Paso 3.
 
 **Historial de git antes y después:**
 
