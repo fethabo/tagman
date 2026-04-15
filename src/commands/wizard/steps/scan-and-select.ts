@@ -301,7 +301,7 @@ export async function scanAndSelectPackages(
         const mainBumpOptions: { value: string; label: string; hint?: string }[] = [];
 
         if (isCurrentPrerelease) {
-          const nextPre = semver.inc(currentVersion, "prerelease", existingChannel)!;
+          const nextPre = semver.inc(currentVersion, "prerelease", existingChannel!)!;
           const stableVer = `${semver.major(currentVersion)}.${semver.minor(currentVersion)}.${semver.patch(currentVersion)}`;
           mainBumpOptions.push(
             { value: "prerelease", label: t().scan.preReleaseIncrement(nextPre), hint: !isGraduationMode ? "suggested" : undefined },
@@ -325,14 +325,14 @@ export async function scanAndSelectPackages(
           t().scan.goBack,
         );
 
-        if (p.isCancel(result)) {
-          p.cancel(t().scan.cancelled);
-          return null;
-        }
-
         if (result === SELECT_BACK) {
           goBackToCommits = true;
           continue;
+        }
+
+        if (p.isCancel(result)) {
+          p.cancel(t().scan.cancelled);
+          return null;
         }
 
         if (result === "prerelease-new") {
@@ -351,14 +351,14 @@ export async function scanAndSelectPackages(
               t().scan.goBack,
             );
 
-            if (p.isCancel(typeResult)) {
-              p.cancel(t().scan.cancelled);
-              return null;
-            }
             if (typeResult === SELECT_BACK) {
               // Back from type → back to main bump selector (= back to commits)
               goBackToCommits = true;
               break preReleaseLoop;
+            }
+            if (p.isCancel(typeResult)) {
+              p.cancel(t().scan.cancelled);
+              return null;
             }
             const preType = typeResult as string;
 
@@ -384,13 +384,13 @@ export async function scanAndSelectPackages(
                 t().scan.goBack,
               );
 
-              if (p.isCancel(channelResult)) {
-                p.cancel(t().scan.cancelled);
-                return null;
-              }
               if (channelResult === SELECT_BACK) {
                 // Back from channel → loop preReleaseLoop to re-show type selector
                 continue preReleaseLoop;
+              }
+              if (p.isCancel(channelResult)) {
+                p.cancel(t().scan.cancelled);
+                return null;
               }
 
               let channelName: string;
@@ -421,7 +421,6 @@ export async function scanAndSelectPackages(
 
     processed.add(pkgName);
 
-    const currentVersion = pkgInfo.pkg.manifest.version;
     const isPrereleaseBump = ["premajor", "preminor", "prepatch", "prerelease"].includes(bump);
 
     let newVersion: string;
@@ -444,9 +443,9 @@ export async function scanAndSelectPackages(
       newVersion = semver.clean(customV as string)!;
     } else if (bump === "prerelease") {
       const existingChannel = semver.prerelease(currentVersion)?.[0] as string | undefined;
-      newVersion = semver.inc(currentVersion, "prerelease", prereleaseChannel ?? existingChannel)!;
+      newVersion = semver.inc(currentVersion, "prerelease", (prereleaseChannel ?? existingChannel)!)!;
     } else if (isPrereleaseBump) {
-      newVersion = semver.inc(currentVersion, bump as semver.ReleaseType, prereleaseChannel)!;
+      newVersion = semver.inc(currentVersion, bump as semver.ReleaseType, prereleaseChannel!)!;
     } else {
       newVersion = semver.inc(currentVersion, bump as semver.ReleaseType)!;
     }

@@ -36,12 +36,12 @@ export async function promptTagMessages(
           t().tagMessages.goBack,
         );
 
+        if (msgAction === SELECT_BACK) return "back";
+
         if (p.isCancel(msgAction)) {
           p.cancel(t().tagMessages.cancelled);
           return false;
         }
-
-        if (msgAction === SELECT_BACK) return "back";
 
         if (msgAction === "auto") {
           state.get(pkgName)!.tagMessage = details.tagMessage;
@@ -64,14 +64,14 @@ export async function promptTagMessages(
             t().tagMessages.goBackToAction,
           );
 
-          if (p.isCancel(position)) {
-            p.cancel(t().tagMessages.cancelled);
-            return false;
-          }
-
           if (position === SELECT_BACK) {
             redoAction = true;
             continue;
+          }
+
+          if (p.isCancel(position)) {
+            p.cancel(t().tagMessages.cancelled);
+            return false;
           }
 
           if (position === "before") {
