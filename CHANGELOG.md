@@ -76,3 +76,7 @@
 
 * **docs:** update readme @fethabo 18d440c
 * **feat:** agregada verificacion de cambios remota. feat: agregada vinculación del tag directamente con el ultimo commit seleccionado. De esta forma pueden realizarse tags sobre commits viejos, garantizando que el snapshot de código de ese tag sea el codigo del último commit seleccionado (cronológicamente) @fethabo c3810e1
+
+## [1.3.0-alpha.5](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.4...@fethabo/tagman@1.3.0-alpha.5) (2026-04-15)
+
+* **feat:** agregada posibilidad de manejar tags cuando no hay commits disponibles @fethabo fbf6db3
