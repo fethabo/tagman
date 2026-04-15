@@ -37,6 +37,10 @@ export const en: Messages = {
     rollbackDone: "Rollback complete. Files reverted successfully.",
     rollbackGitWarn: "Could not revert the git commit. Please verify manually with git log.",
     cancelled: "Operation cancelled.",
+    fetchingRemote: "Checking remote for new commits...",
+    behindRemote: (count) => `Your branch is ${count} commit(s) behind origin.`,
+    behindQuestion: "Do you want to continue without pulling?",
+    behindBlocked: "Pull the latest changes before releasing.",
   },
   scan: {
     scanning: "Scanning packages for new commits...",
@@ -70,6 +74,12 @@ export const en: Messages = {
     channelCustom: "Custom channel name",
     channelCustomInput: "Enter the channel name (e.g. alpha, beta, rc):",
     channelBranchHint: "current branch",
+    trailingCommitsWarning: (count) => `Warning: ${count} commit(s) newer than your selection will be included in the tag's code but not in the changelog, and won't appear in the next scan.`,
+    trailingCommitsQuestion: "How do you want to handle these commits?",
+    trailingReorder: "Reorder — tag at the selected code state (safe, local-only)",
+    trailingAddAll: "Add them to this release",
+    trailingContinue: "Continue anyway (included in code, excluded from changelog)",
+    trailingGoBack: "Go back to commit selection",
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `Create a Git tag for ${pkg}@${version}?`,
@@ -118,5 +128,8 @@ export const en: Messages = {
     done: "Release complete! Versions generated successfully.",
     dryRunHeader: "--- DRY RUN: changes that would be applied ---",
     dryRunDone: "Dry run complete. No changes were made.",
+    reorderLifting: "Reordering commits around release...",
+    reorderDone: "Commits reordered successfully.",
+    reorderFailed: (msg) => `Commit reorder failed: ${msg}. Reverting to original state.`,
   },
 };

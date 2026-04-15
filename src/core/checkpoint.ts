@@ -11,6 +11,7 @@ export interface ReleaseState {
       | "premajor" | "preminor" | "prepatch" | "prerelease" | "graduate";
   prereleaseChannel?: string;  // "alpha", "beta", "rc", or custom
   githubPrerelease?: boolean;  // overrides config.github.prerelease when set
+  liftCommits?: string[];      // global commit hashes (oldest-first) to cherry-pick after release commit
   newVersion: string;
   tagMessage: string;
 }

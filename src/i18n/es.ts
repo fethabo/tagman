@@ -37,6 +37,10 @@ export const es: Messages = {
     rollbackDone: "Rollback completado. Archivos revertidos adecuadamente.",
     rollbackGitWarn: "No se pudo revertir el commit de git. Verificá manualmente con git log.",
     cancelled: "Operación cancelada.",
+    fetchingRemote: "Verificando cambios remotos...",
+    behindRemote: (count) => `Tu rama está ${count} commit(s) detrás del origen.`,
+    behindQuestion: "¿Querés continuar sin hacer pull?",
+    behindBlocked: "Hacé pull de los últimos cambios antes de lanzar.",
   },
   scan: {
     scanning: "Escaneando paquetes en busca de commits nuevos...",
@@ -70,6 +74,12 @@ export const es: Messages = {
     channelCustom: "Nombre de canal personalizado",
     channelCustomInput: "Ingresá el nombre del canal (ej: alpha, beta, rc):",
     channelBranchHint: "rama actual",
+    trailingCommitsWarning: (count) => `Atención: ${count} commit(s) más recientes que tu selección se incluirán en el código del tag pero no en el changelog, y no estarán disponibles en el próximo escaneo.`,
+    trailingCommitsQuestion: "¿Cómo querés manejar estos commits?",
+    trailingReorder: "Reordenar — tag en el estado del código seleccionado (seguro, solo local)",
+    trailingAddAll: "Agregarlos a este release",
+    trailingContinue: "Continuar igual (incluidos en código, excluidos del changelog)",
+    trailingGoBack: "Volver a selección de commits",
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `¿Crear tag de Git para ${pkg}@${version}?`,
@@ -118,5 +128,8 @@ export const es: Messages = {
     done: "¡Lanzamiento completado! Versiones generadas correctamente.",
     dryRunHeader: "--- DRY RUN: cambios que se aplicarían ---",
     dryRunDone: "Dry run completado. No se realizaron cambios.",
+    reorderLifting: "Reordenando commits alrededor del release...",
+    reorderDone: "Commits reordenados correctamente.",
+    reorderFailed: (msg) => `Falló el reordenamiento: ${msg}. Revirtiendo al estado original.`,
   },
 };

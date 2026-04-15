@@ -1,7 +1,7 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import semver from "semver";
-import { getCommitsForPath, getLastTagForPackage, getRepoCommitsSince, getCurrentBranch, type CommitInfo } from "../../../git/index.js";
+import { getCommitsForPath, getLastTagForPackage, getRepoCommitsSince, getCurrentBranch, getNotPushedHashes, git, type CommitInfo } from "../../../git/index.js";
 import { suggestBump } from "../../../core/commits.js";
 import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js";
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
@@ -83,6 +83,7 @@ export async function scanAndSelectPackages(
   const state = new Map<string, ReleaseState>();
   const queue = [...selectedNames];
   const processed = new Set<string>();
+  let hasReorder = false; // only one package per run can reorder
 
   while (queue.length > 0) {
     const pkgName = queue.shift()!;
@@ -98,9 +99,11 @@ export async function scanAndSelectPackages(
     let chosenCommits: CommitInfo[] = [];
     let bump: string = "";
     let prereleaseChannel: string | undefined;
+    let liftCommits: string[] | undefined = undefined;
 
     do {
       goBackToCommits = false;
+      liftCommits = undefined;
 
       // Step 2: Path-specific commit selection
       if (globalBump !== undefined || yes) {
@@ -125,9 +128,61 @@ export async function scanAndSelectPackages(
           return null;
         }
 
-        const selectedPathCommits = pkgInfo.commits.filter(c =>
+        let selectedPathCommits = pkgInfo.commits.filter(c =>
           (selectedCommitHashes as string[]).includes(c.hash)
         );
+
+        // Trailing commit detection: commits more recent than the last selected one
+        const selectedSet = new Set(selectedCommitHashes as string[]);
+        const firstSelectedIdx = pkgInfo.commits.findIndex(c => selectedSet.has(c.hash));
+        const trailingCommits = firstSelectedIdx > 0 ? pkgInfo.commits.slice(0, firstSelectedIdx) : [];
+
+        if (trailingCommits.length > 0) {
+          const mostRecentSelectedHash = pkgInfo.commits[firstSelectedIdx].hash;
+          const liftRaw = await git.raw(["log", "--format=%H", `${mostRecentSelectedHash}..HEAD`]);
+          const computedLiftCommits = liftRaw.trim().split("\n").filter(Boolean).reverse();
+
+          const branch = await getCurrentBranch();
+          const notPushed = await getNotPushedHashes(branch);
+          const allLiftNotPushed = notPushed === null || computedLiftCommits.every(h => notPushed.has(h));
+          const canReorder = !hasReorder && allLiftNotPushed && computedLiftCommits.length > 0;
+
+          p.log.warn(t().scan.trailingCommitsWarning(trailingCommits.length));
+          for (const c of trailingCommits) {
+            p.log.message(`  ${color.dim(c.hash.substring(0, 7))} ${c.message}`);
+          }
+
+          const trailingOptions: { value: string; label: string }[] = [
+            ...(canReorder ? [{ value: "reorder", label: t().scan.trailingReorder }] : []),
+            { value: "add",      label: t().scan.trailingAddAll },
+            { value: "continue", label: t().scan.trailingContinue },
+            { value: "back",     label: t().scan.trailingGoBack },
+          ];
+
+          const trailingAction = await wizardSelect(
+            t().scan.trailingCommitsQuestion,
+            trailingOptions,
+            canReorder ? "reorder" : "add",
+            undefined,
+          );
+
+          if (p.isCancel(trailingAction)) {
+            p.cancel(t().scan.cancelled);
+            return null;
+          }
+          if (trailingAction === "back") {
+            goBackToCommits = true;
+            continue;
+          }
+          if (trailingAction === "add") {
+            selectedPathCommits = [...trailingCommits, ...selectedPathCommits];
+          }
+          if (trailingAction === "reorder") {
+            liftCommits = computedLiftCommits;
+            hasReorder = true;
+          }
+          // "continue" → proceed as-is; trailing commits will be included in tag code but not changelog
+        }
 
         // Step 2b: Optional extra commits from outside this package's directory
         let chosenExtraCommits: CommitInfo[] = [];
@@ -378,6 +433,7 @@ export async function scanAndSelectPackages(
       bump: bump as ReleaseState["bump"],
       prereleaseChannel,
       githubPrerelease: isPrereleaseBump || undefined,
+      liftCommits,
       newVersion,
       tagMessage: defaultTagMsg,
     });

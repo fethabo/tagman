@@ -35,6 +35,10 @@ export type Messages = {
     rollbackDone: string;
     rollbackGitWarn: string;
     cancelled: string;
+    fetchingRemote: string;
+    behindRemote: (count: number) => string;
+    behindQuestion: string;
+    behindBlocked: string;
   };
   scan: {
     scanning: string;
@@ -68,6 +72,12 @@ export type Messages = {
     channelCustom: string;
     channelCustomInput: string;
     channelBranchHint: string;
+    trailingCommitsWarning: (count: number) => string;
+    trailingCommitsQuestion: string;
+    trailingReorder: string;
+    trailingAddAll: string;
+    trailingContinue: string;
+    trailingGoBack: string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;
@@ -116,5 +126,8 @@ export type Messages = {
     done: string;
     dryRunHeader: string;
     dryRunDone: string;
+    reorderLifting: string;
+    reorderDone: string;
+    reorderFailed: (msg: string) => string;
   };
 };

@@ -18,6 +18,7 @@ export const tagmanConfigSchema = z.object({
     access: z.enum(["public", "restricted"]).default("public"),
   }).optional(),
   plugins: z.array(z.string()).optional(),
+  requireRemoteSync: z.boolean().optional(),
 }).strict();
 
 export type TagmanConfig = z.infer<typeof tagmanConfigSchema>;

@@ -104,6 +104,35 @@ export async function resetLastCommit(): Promise<void> {
 }
 
 /**
+ * Fetches remote tracking refs and returns how many commits the local branch
+ * is behind its upstream. Returns 0 if there is no remote, no tracking branch
+ * configured, or the network is unavailable.
+ */
+export async function getRemoteBehindCount(): Promise<number> {
+  try {
+    await git.fetch(["--quiet", "--no-tags"]);
+    const raw = await git.raw(["rev-list", "--count", "HEAD..@{u}"]);
+    return parseInt(raw.trim(), 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Returns the set of commit hashes that are ahead of origin/<branch> (not yet pushed).
+ * Returns null when the remote tracking branch doesn't exist (no remote configured),
+ * which should be treated as "all commits are local — safe to reorder".
+ */
+export async function getNotPushedHashes(branch: string): Promise<Set<string> | null> {
+  try {
+    const raw = await git.raw(["log", "--format=%H", `origin/${branch}..HEAD`]);
+    return new Set(raw.trim().split("\n").filter(Boolean));
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Returns the name of the current git branch.
  */
 export async function getCurrentBranch(): Promise<string> {

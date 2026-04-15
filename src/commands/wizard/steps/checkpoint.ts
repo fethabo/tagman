@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
-import { hasUncommittedChanges, deleteLocalTag, resetLastCommit, git } from "../../../git/index.js";
+import { hasUncommittedChanges, deleteLocalTag, resetLastCommit, getRemoteBehindCount, git } from "../../../git/index.js";
 import { t } from "../../../i18n/index.js";
 import { loadCheckpoint, clearCheckpoint, type ReleaseState } from "../../../core/checkpoint.js";
 import { getWorkspacePackages, getDependents } from "../../../core/workspace.js";
@@ -21,6 +21,27 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
   if (await hasUncommittedChanges()) {
     const proceed = await p.confirm({
       message: `${color.yellow(t().checkpoint.uncommittedWarning)} ${t().checkpoint.uncommittedQuestion}`,
+      initialValue: false,
+    });
+    if (p.isCancel(proceed) || !proceed) {
+      p.cancel(t().checkpoint.cancelled);
+      return null;
+    }
+  }
+
+  const syncSpinner = p.spinner();
+  syncSpinner.start(t().checkpoint.fetchingRemote);
+  const behind = await getRemoteBehindCount();
+  syncSpinner.stop("");
+
+  if (behind > 0) {
+    if (config.requireRemoteSync) {
+      p.log.error(t().checkpoint.behindRemote(behind));
+      p.cancel(t().checkpoint.behindBlocked);
+      return null;
+    }
+    const proceed = await p.confirm({
+      message: `${color.yellow(t().checkpoint.behindRemote(behind))} ${t().checkpoint.behindQuestion}`,
       initialValue: false,
     });
     if (p.isCancel(proceed) || !proceed) {

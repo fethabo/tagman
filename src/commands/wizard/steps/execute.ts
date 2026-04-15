@@ -7,7 +7,7 @@ import {
   appendToChangelog,
   logRelease,
 } from "../../../core/updater.js";
-import { createReleaseCommit, createAnnotatedTag, deleteLocalTag, resetLastCommit, pushRelease, getGitHubRemoteInfo } from "../../../git/index.js";
+import { createReleaseCommit, createAnnotatedTag, deleteLocalTag, resetLastCommit, pushRelease, getGitHubRemoteInfo, git } from "../../../git/index.js";
 import { resolveGithubToken } from "../../../core/token.js";
 import { createGithubRelease } from "../../../integrations/github.js";
 import { publishPackage } from "../../../integrations/npm.js";
@@ -52,6 +52,14 @@ export async function executeRelease(
     return;
   }
 
+  // Collect lift commits from all packages (only one package can have them per plan)
+  const seen = new Set<string>();
+  const dedupedLift = Array.from(state.values())
+    .flatMap(d => d.liftCommits ?? [])
+    .filter(h => !seen.has(h) && seen.add(h) as unknown as boolean);
+
+  let origHead: string | null = null;
+
   if (!isRecovered) {
     if (!yes) {
       const execute = await p.confirm({
@@ -64,6 +72,13 @@ export async function executeRelease(
         return;
       }
     }
+
+    // If reorder was requested, reset HEAD to remove trailing commits before writing
+    if (dedupedLift.length > 0) {
+      origHead = (await git.raw(["rev-parse", "HEAD"])).trim();
+      await git.raw(["reset", "--hard", `HEAD~${dedupedLift.length}`]);
+    }
+
     await saveCheckpoint("writing", state);
   }
 
@@ -135,6 +150,29 @@ export async function executeRelease(
 
   commitSpinner.stop(t().execute.commitDone);
   await clearCheckpoint();
+
+  // Reorder: cherry-pick the lifted commits back on top of the release commit
+  if (dedupedLift.length > 0) {
+    const liftSpinner = p.spinner();
+    liftSpinner.start(t().execute.reorderLifting);
+    try {
+      for (const hash of dedupedLift) {
+        await git.raw(["cherry-pick", hash]);
+      }
+      liftSpinner.stop(t().execute.reorderDone);
+    } catch (e: any) {
+      await git.raw(["cherry-pick", "--abort"]).catch(() => {});
+      liftSpinner.stop(t().execute.reorderFailed(e.message));
+      // Roll back: restore original HEAD (trailing commits + no release commit)
+      if (origHead) {
+        await git.raw(["reset", "--hard", origHead]);
+        for (const tag of createdTags) {
+          try { await deleteLocalTag(tag); } catch { /* ignore */ }
+        }
+      }
+      return;
+    }
+  }
 
   let doPush = push;
   if (!push) {
