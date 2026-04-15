@@ -1,4 +1,5 @@
 import { simpleGit, SimpleGit } from "simple-git";
+import semver from "semver";
 
 export const git: SimpleGit = simpleGit();
 
@@ -26,6 +27,24 @@ export async function getLastTagForPackage(packageName: string): Promise<string 
     const lines = tags.split("\n").filter(Boolean);
     return lines.length > 0 ? lines[0] : null;
   } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Returns the most recent non-prerelease tag for a package (e.g. "my-pkg@1.2.0"),
+ * or null if no stable tag exists. Used to gather changelog commits for a graduation.
+ */
+export async function getLastStableTagForPackage(packageName: string): Promise<string | null> {
+  try {
+    const tags = await git.raw(["tag", "-l", `${packageName}@*`, "--sort=-v:refname"]);
+    const lines = tags.split("\n").filter(Boolean);
+    for (const tag of lines) {
+      const version = tag.slice(packageName.length + 1); // strip "name@"
+      if (semver.prerelease(version) === null) return tag;
+    }
+    return null;
+  } catch {
     return null;
   }
 }

@@ -1,7 +1,7 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import semver from "semver";
-import { getCommitsForPath, getLastTagForPackage, getRepoCommitsSince, getCurrentBranch, getNotPushedHashes, git, type CommitInfo } from "../../../git/index.js";
+import { getCommitsForPath, getLastTagForPackage, getLastStableTagForPackage, getRepoCommitsSince, getCurrentBranch, getNotPushedHashes, git, type CommitInfo } from "../../../git/index.js";
 import { suggestBump } from "../../../core/commits.js";
 import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js";
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
@@ -16,6 +16,7 @@ export type PackageInfo = {
   commits: CommitInfo[];
   extraCommits: CommitInfo[];
   lastTag: string | null;
+  isGraduation?: boolean;
 };
 
 export type ScanOptions = {
@@ -31,6 +32,7 @@ export async function scanAndSelectPackages(
 ): Promise<Map<string, ReleaseState> | null | "back" | "no-commits"> {
   const { packages: pkgFilter, bump: globalBump, yes = false } = options;
   const packagesWithCommits: PackageInfo[] = [];
+  const graduationCandidates: PackageInfo[] = [];
 
   const spinner = p.spinner();
   spinner.start(t().scan.scanning);
@@ -43,20 +45,38 @@ export async function scanAndSelectPackages(
       const pathHashes = new Set(commits.map(c => c.hash));
       const extraCommits = repoCommits.filter(c => !pathHashes.has(c.hash));
       packagesWithCommits.push({ pkg, commits, extraCommits, lastTag });
+    } else if (semver.prerelease(pkg.manifest.version) !== null) {
+      // No new commits but current version is a pre-release → graduation candidate
+      const lastStableTag = await getLastStableTagForPackage(pkg.manifest.name);
+      const cycleCommits = await getCommitsForPath(pkg.dir, lastStableTag);
+      graduationCandidates.push({
+        pkg,
+        commits: cycleCommits,
+        extraCommits: [],
+        lastTag,
+        isGraduation: true,
+      });
     }
   }
 
   spinner.stop(t().scan.scanDone(allPackages.length, packagesWithCommits.length));
 
-  if (packagesWithCommits.length === 0) {
+  if (graduationCandidates.length > 0) {
+    p.log.info(t().scan.graduationFound(graduationCandidates.length));
+  }
+
+  if (packagesWithCommits.length === 0 && graduationCandidates.length === 0) {
     return "no-commits";
   }
+
+  // Unified candidate list: packages with new commits first, then graduation candidates
+  const allCandidates: PackageInfo[] = [...packagesWithCommits, ...graduationCandidates];
 
   // Step 1: Select packages
   let selectedNames: string[];
   if (pkgFilter) {
     const requested = pkgFilter.split(",").map(s => s.trim()).filter(Boolean);
-    selectedNames = packagesWithCommits
+    selectedNames = allCandidates
       .map(info => info.pkg.manifest.name)
       .filter(name => requested.includes(name));
     if (selectedNames.length === 0) {
@@ -66,9 +86,14 @@ export async function scanAndSelectPackages(
   } else {
     const result = await p.multiselect({
       message: t().scan.selectPackages,
-      options: packagesWithCommits.map(info => ({
+      options: allCandidates.map(info => ({
         value: info.pkg.manifest.name,
-        label: `${info.pkg.manifest.name} (${info.commits.length} commits)`,
+        label: info.isGraduation
+          ? info.pkg.manifest.name
+          : `${info.pkg.manifest.name} (${info.commits.length} commits)`,
+        hint: info.isGraduation
+          ? t().scan.graduationHint(info.pkg.manifest.version)
+          : undefined,
       })),
       required: true,
     });
@@ -89,7 +114,7 @@ export async function scanAndSelectPackages(
     const pkgName = queue.shift()!;
     if (processed.has(pkgName)) continue;
 
-    const pkgInfo = packagesWithCommits.find(info => info.pkg.manifest.name === pkgName);
+    const pkgInfo = allCandidates.find(info => info.pkg.manifest.name === pkgName);
     if (!pkgInfo) {
       processed.add(pkgName);
       continue;
@@ -108,6 +133,9 @@ export async function scanAndSelectPackages(
       // Step 2: Path-specific commit selection
       if (globalBump !== undefined || yes) {
         // Headless: select all path commits, skip extras
+        chosenCommits = pkgInfo.commits;
+      } else if (pkgInfo.isGraduation) {
+        // Graduation: no new commits to select — use full pre-release cycle for CHANGELOG
         chosenCommits = pkgInfo.commits;
       } else {
         const selectedCommitHashes = await commitMultiSelect(
@@ -399,14 +427,15 @@ export async function scanAndSelectPackages(
         if (!processed.has(dep.manifest.name) && !queue.includes(dep.manifest.name)) {
           queue.push(dep.manifest.name);
 
-          const existing = packagesWithCommits.find(info => info.pkg.manifest.name === dep.manifest.name);
+          const existing = allCandidates.find(info => info.pkg.manifest.name === dep.manifest.name);
           if (!existing) {
-            packagesWithCommits.push({
+            const cascadeEntry: PackageInfo = {
               pkg: dep,
               commits: [{ hash: "cascade", date: "", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman" }],
               extraCommits: [],
               lastTag: null,
-            });
+            };
+            allCandidates.push(cascadeEntry);
           } else {
             existing.commits.unshift({ hash: "cascade", date: "", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman" });
           }

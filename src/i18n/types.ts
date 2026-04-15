@@ -78,6 +78,8 @@ export type Messages = {
     trailingAddAll: string;
     trailingContinue: string;
     trailingGoBack: string;
+    graduationFound: (count: number) => string;
+    graduationHint: (version: string) => string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;

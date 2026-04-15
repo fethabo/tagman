@@ -80,6 +80,8 @@ export const en: Messages = {
     trailingAddAll: "Add them to this release",
     trailingContinue: "Continue anyway (included in code, excluded from changelog)",
     trailingGoBack: "Go back to commit selection",
+    graduationFound: (count) => `Found ${count} package(s) eligible for graduation to stable.`,
+    graduationHint: (version) => `no new commits — graduate ${version} to stable`,
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `Create a Git tag for ${pkg}@${version}?`,
