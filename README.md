@@ -41,6 +41,7 @@ Unlike fully automated semantic release tools, **tagman** doesn't execute destru
 - **Plugin System**: Extend tagman with custom logic via an `afterRelease` hook.
 - **Remote Sync Check**: Before scanning, tagman fetches remote tracking info and warns you if the local branch is behind origin — preventing tags on stale code.
 - **Partial Commit Selection with Reorder**: When you deselect recent commits for a package, tagman detects the situation and offers to reorder the git history so the tag points to the selected code state — keeping skipped commits available for future scans.
+- **Pre-release Graduation**: Graduate a pre-release version (e.g. `1.3.0-alpha.5`) to stable (`1.3.0`) in two ways: when there are no new commits since the last pre-release tag, the package is surfaced automatically as a graduation candidate; when new commits exist but you don't want to include them, deselect all commits in the multiselect and tagman uses the reorder mechanism to tag at the exact pre-release code state.
 - **i18n**: Interface available in English and Spanish (`--lang en|es`).
 
 ### Quick Start
@@ -155,7 +156,7 @@ If the current version is already a pre-release (e.g. `2.0.0-alpha.1`), two addi
 | `increment counter` | `2.0.0-alpha.1 → 2.0.0-alpha.2` — bump the pre-release counter |
 | `graduate to stable` | `2.0.0-alpha.1 → 2.0.0` — remove the pre-release identifier |
 
-tagman auto-suggests the bump type based on the conventional commit types you selected (`feat →` minor, `BREAKING CHANGE →` major, everything else → patch). When the current version is already a pre-release, "increment counter" is auto-suggested.
+tagman auto-suggests the bump type based on the conventional commit types you selected (`feat →` minor, `BREAKING CHANGE →` major, everything else → patch). When the current version is already a pre-release, "increment counter" is auto-suggested — unless you are graduating (deselected all commits in Step 2), in which case "graduate to stable" is auto-suggested.
 
 #### Pre-release sub-flow
 
@@ -208,6 +209,50 @@ After:   ... → commit-B → [release commit + tag] → commit-C' ← HEAD
 `commit-C'` is commit-C re-applied via `git cherry-pick`, with the same message and author. On the next `tagman` run, it will appear as a pending commit.
 
 > **Note:** The reorder option is only available when the trailing commits have not been pushed to origin. Once commits are pushed, rewriting history would require a force-push, which tagman does not do.
+
+### Pre-release Graduation
+
+Graduating a pre-release version (e.g. `1.3.0-alpha.5`) to its stable counterpart (`1.3.0`) means tagging the **exact same code state** as the pre-release — only `package.json` and `CHANGELOG.md` change. tagman supports two paths to graduation:
+
+#### Case 1 — No new commits (automatic detection)
+
+When a package has no new commits since its last pre-release tag, tagman detects it automatically during the scan and marks it as a **graduation candidate**. You don't need to do anything special:
+
+1. Scan completes: `"Scanned N packages. Found 0 with pending changes."` + `"Found 1 package(s) eligible for graduation to stable."`
+2. **Step 1** — The package appears in the multiselect with a hint: `no new commits — graduate 1.3.0-alpha.5 to stable`. Select it.
+3. **Step 2 is skipped** — there are no new commits to pick. tagman goes straight to bump selection.
+4. **Step 3** — "Graduate to stable → `1.3.0`" is shown as the first option.
+5. Proceed normally: `package.json` is updated, the CHANGELOG is appended with all commits from the entire pre-release cycle (since the last stable tag), and the tag is created.
+
+#### Case 2 — New commits exist but you want to graduate anyway
+
+When there are new commits since the pre-release tag but you want to graduate without including them, you signal this by deselecting **all commits** in the multiselect:
+
+1. **Step 2** — The commit multiselect appears normally. Press `n` to deselect all, then press Enter.
+2. tagman detects that zero commits were selected on a pre-release package and asks: `"No commits selected for my-pkg (1.3.0-alpha.5). Graduate to stable instead?"`
+3. Confirm → tagman fetches the full pre-release cycle commits (since last stable tag) for the CHANGELOG and uses the **reorder mechanism** to tag at the pre-release tag's code state:
+   - Commits between the pre-release tag and `HEAD` are temporarily removed (`git reset --hard`)
+   - The graduation release commit is created at the pre-release tag's code state
+   - The tag is placed there
+   - The removed commits are re-applied via `git cherry-pick`
+4. **Step 3** — "Graduate to stable → `1.3.0`" is auto-suggested.
+5. Decline → returns to the commit multiselect to make a different selection.
+
+**Git history before and after:**
+
+```
+Before:  ... → [alpha.5 tag] → commit-X → commit-Y ← HEAD
+After:   ... → [alpha.5 tag] → [graduation commit + 1.3.0 tag] → commit-X' → commit-Y' ← HEAD
+```
+
+The skipped commits (`X'`, `Y'`) are cherry-picked back with the same messages and authors. On the next `tagman` run they will appear as pending commits for that package.
+
+**Guards for Case 2:**
+
+| Condition | Behavior |
+|-----------|----------|
+| Any commit since the pre-release tag has already been pushed | Graduation is blocked. A warning is shown and you are returned to the commit multiselect. Push restrictions prevent force-push scenarios. |
+| Another package in the same run already used a commit reorder | Graduation is blocked for this package (only one reorder per run). |
 
 ### CLI Commands & Flags
 
@@ -415,7 +460,9 @@ tagman github-release --lang en
 
 #### Walkthrough 4: Pre-release branch workflow
 
-You work on a feature branch and want to ship incremental pre-release versions during development, then graduate to a stable release when you merge to `main`.
+You work on a feature branch and want to ship incremental pre-release versions during development, then graduate to a stable release. Two graduation scenarios are shown below.
+
+**Phase 1 — Building the pre-release on a feature branch**
 
 ```bash
 git checkout -b feature/inscripciones
@@ -436,6 +483,10 @@ tagman release
 
 5. tagman detects the current version is `1.3.0-inscripciones.0` (a pre-release) and auto-suggests **increment counter** → creates `my-pkg@1.3.0-inscripciones.1`.
 
+---
+
+**Scenario A — Graduate after merging to `main` (no new commits)**
+
 After merging to `main`:
 
 ```bash
@@ -443,8 +494,29 @@ git checkout main && git merge feature/inscripciones
 tagman release
 ```
 
-6. **Step 3** — tagman detects `1.3.0-inscripciones.1` and shows **graduate to stable → `1.3.0`** as the first option.
-7. Confirm → `my-pkg@1.3.0` is created. The GitHub Release is automatically marked as a full release (not pre-release).
+6. tagman scans and finds no new commits for `my-pkg` (the merge brought in the same commits already tagged). It surfaces the package as a **graduation candidate** with the hint `no new commits — graduate 1.3.0-inscripciones.1 to stable`.
+7. **Step 2 is skipped** — tagman goes directly to bump selection.
+8. **Step 3** — "Graduate to stable → `1.3.0`" appears as the first option.
+9. Confirm → `my-pkg@1.3.0` is created. The CHANGELOG is populated with all commits from the pre-release cycle. GitHub Releases are automatically marked as full releases.
+
+---
+
+**Scenario B — Graduate without merging (new commits exist on the branch)**
+
+You're still on `feature/inscripciones` and made additional commits after `inscripciones.1` — but you want to graduate to stable without including those commits in the changelog:
+
+```bash
+tagman release
+```
+
+6. **Step 1** — `my-pkg` appears with its pending commit count.
+7. **Step 2** — The commit multiselect opens. Press `n` to deselect all commits, then press Enter.
+8. tagman detects zero commits selected on a pre-release version and asks: `"No commits selected for my-pkg (1.3.0-inscripciones.1). Graduate to stable instead?"`
+9. Confirm → tagman reorders history: resets to the `inscripciones.1` code state, creates the graduation commit + `1.3.0` tag there, then re-applies the other commits on top.
+10. **Step 3** — "Graduate to stable → `1.3.0`" is auto-suggested. Confirm.
+11. `my-pkg@1.3.0` is created, pointing exactly at the code from `inscripciones.1`. The extra commits remain on top as pending changes for the next scan.
+
+> **Note:** Scenario B requires all commits since the last pre-release tag to be unpushed. If any have been pushed to origin, tagman will warn you and return to commit selection.
 
 ---
 
@@ -498,6 +570,7 @@ A diferencia de las herramientas de *semantic release* completamente automatizad
 - **Sistema de Plugins**: Extendé tagman con lógica personalizada mediante el hook `afterRelease`.
 - **Verificación de Sincronización Remota**: Antes de escanear, tagman consulta el estado del remoto y te avisa si tu rama local está desactualizada respecto a origin — evitando tags sobre código que no incluye los últimos cambios.
 - **Selección Parcial con Reordenamiento**: Cuando desseleccionás los commits más recientes de un paquete, tagman detecta la situación y ofrece reordenar el historial de git para que el tag apunte al estado exacto del código seleccionado — preservando los commits omitidos para futuros escaneos.
+- **Graduación de Pre-release**: Graduá una versión pre-release (ej: `1.3.0-alpha.5`) a su equivalente estable (`1.3.0`) de dos formas: cuando no hay commits nuevos desde el último tag pre-release, el paquete se detecta automáticamente como candidato a graduación; cuando hay commits nuevos pero no los querés incluir, desseleccioná todos en el multiselect y tagman usa el mecanismo de reordenamiento para tagear en el estado exacto del código pre-release.
 - **i18n**: Interfaz disponible en español e inglés (`--lang es|en`).
 
 ### Inicio Rápido
@@ -612,7 +685,7 @@ Si la versión actual ya es pre-release (ej: `2.0.0-alpha.1`), aparecen dos opci
 | `incrementar contador` | `2.0.0-alpha.1 → 2.0.0-alpha.2` — incrementa el contador de pre-release |
 | `graduar a estable` | `2.0.0-alpha.1 → 2.0.0` — elimina el identificador de pre-release |
 
-tagman sugiere automáticamente el tipo de bump según los tipos de commits convencionales (`feat →` minor, `BREAKING CHANGE →` major, el resto → patch). Cuando la versión actual ya es pre-release, se sugiere "incrementar contador".
+tagman sugiere automáticamente el tipo de bump según los tipos de commits convencionales (`feat →` minor, `BREAKING CHANGE →` major, el resto → patch). Cuando la versión actual ya es pre-release, se sugiere "incrementar contador" — a menos que estés graduando (desseleccionaste todos los commits en el Paso 2), en cuyo caso se sugiere "graduar a estable".
 
 #### Sub-flujo de pre-release
 
@@ -665,6 +738,50 @@ Después: ... → commit-B → [commit de release + tag] → commit-C' ← HEAD
 `commit-C'` es el commit-C re-aplicado via `git cherry-pick`, con el mismo mensaje y autor. En el próximo `tagman`, aparecerá como commit pendiente.
 
 > **Nota:** La opción de reordenamiento solo está disponible cuando los commits rezagados no fueron pusheados a origin. Una vez pusheados, reescribir el historial requeriría un force-push, lo cual tagman no hace.
+
+### Graduación de Pre-release
+
+Graduar una versión pre-release (ej: `1.3.0-alpha.5`) a su equivalente estable (`1.3.0`) significa tagear **exactamente el mismo estado de código** del pre-release — solo cambian `package.json` y `CHANGELOG.md`. tagman ofrece dos caminos para la graduación:
+
+#### Caso 1 — Sin commits nuevos (detección automática)
+
+Cuando un paquete no tiene commits nuevos desde su último tag pre-release, tagman lo detecta automáticamente durante el escaneo y lo marca como **candidato a graduación**. No hay que hacer nada especial:
+
+1. El escaneo termina: `"Escaneados N paquetes. 0 con cambios pendientes."` + `"Se encontró 1 paquete elegible para graduar a estable."`
+2. **Paso 1** — El paquete aparece en el multiselect con el hint: `sin commits nuevos — graduar 1.3.0-alpha.5 a estable`. Seleccionalo.
+3. **El Paso 2 se omite** — no hay commits nuevos para seleccionar. tagman va directo al selector de bump.
+4. **Paso 3** — "Graduar a estable → `1.3.0`" aparece como primera opción.
+5. Continuá normalmente: se actualiza `package.json`, se agrega al CHANGELOG con todos los commits del ciclo pre-release completo (desde el último tag estable), y se crea el tag.
+
+#### Caso 2 — Hay commits nuevos pero querés graduar igual
+
+Cuando hay commits nuevos desde el tag pre-release pero no querés incluirlos, lo señalás desseleccionando **todos los commits** en el multiselect:
+
+1. **Paso 2** — El multiselect de commits aparece normalmente. Presioná `n` para desseleccionar todos, luego Enter.
+2. tagman detecta que se seleccionaron cero commits sobre un paquete pre-release y pregunta: `"No se seleccionaron commits para my-pkg (1.3.0-alpha.5). ¿Graduar a estable?"`
+3. Confirmás → tagman obtiene los commits del ciclo pre-release completo (desde el último tag estable) para el CHANGELOG y usa el **mecanismo de reordenamiento** para tagear en el estado de código del tag pre-release:
+   - Los commits entre el tag pre-release y `HEAD` se eliminan temporalmente (`git reset --hard`)
+   - El commit de graduación se crea en el estado de código del tag pre-release
+   - El tag se ubica allí
+   - Los commits eliminados se re-aplican con `git cherry-pick`
+4. **Paso 3** — "Graduar a estable → `1.3.0`" se auto-sugiere.
+5. Si rechazás → volvés al multiselect de commits para hacer otra selección.
+
+**Historial de git antes y después:**
+
+```
+Antes:   ... → [tag alpha.5] → commit-X → commit-Y ← HEAD
+Después: ... → [tag alpha.5] → [commit de graduación + tag 1.3.0] → commit-X' → commit-Y' ← HEAD
+```
+
+Los commits omitidos (`X'`, `Y'`) se re-aplican con cherry-pick, con los mismos mensajes y autores. En el próximo `tagman` aparecerán como commits pendientes del paquete.
+
+**Restricciones del Caso 2:**
+
+| Condición | Comportamiento |
+|-----------|----------------|
+| Algún commit desde el tag pre-release ya fue pusheado | La graduación se bloquea. Se muestra una advertencia y se vuelve al multiselect de commits. |
+| Otro paquete en la misma ejecución ya usó un reordenamiento | La graduación se bloquea para este paquete (solo un reordenamiento por ejecución). |
 
 ### Comandos y Flags de CLI
 
@@ -872,7 +989,9 @@ tagman github-release
 
 #### Guía 4: Flujo de pre-release en rama
 
-Trabajás en una rama de feature y querés generar versiones pre-release incrementales durante el desarrollo, para luego graduar a estable cuando mergeás a `main`.
+Trabajás en una rama de feature y querés generar versiones pre-release incrementales durante el desarrollo, para luego graduar a estable. Se muestran dos escenarios de graduación.
+
+**Fase 1 — Construyendo el pre-release en la rama**
 
 ```bash
 git checkout -b feature/inscripciones
@@ -893,6 +1012,10 @@ tagman release
 
 5. tagman detecta que la versión actual es `1.3.0-inscripciones.0` (pre-release) y sugiere automáticamente **incrementar contador** → crea `my-pkg@1.3.0-inscripciones.1`.
 
+---
+
+**Escenario A — Graduar después del merge a `main` (sin commits nuevos)**
+
 Después del merge a `main`:
 
 ```bash
@@ -900,8 +1023,29 @@ git checkout main && git merge feature/inscripciones
 tagman release
 ```
 
-6. **Paso 3** — tagman detecta `1.3.0-inscripciones.1` y muestra **graduar a estable → `1.3.0`** como primera opción.
-7. Confirmás → se crea `my-pkg@1.3.0`. El GitHub Release se marca automáticamente como release completo (no pre-release).
+6. tagman escanea y no encuentra commits nuevos para `my-pkg` (el merge trajo los mismos commits ya tageados). Muestra el paquete como **candidato a graduación** con el hint `sin commits nuevos — graduar 1.3.0-inscripciones.1 a estable`.
+7. **El Paso 2 se omite** — tagman va directamente al selector de bump.
+8. **Paso 3** — "Graduar a estable → `1.3.0`" aparece como primera opción.
+9. Confirmás → se crea `my-pkg@1.3.0`. El CHANGELOG se completa con todos los commits del ciclo pre-release. Los GitHub Releases se marcan automáticamente como releases completos.
+
+---
+
+**Escenario B — Graduar sin mergear (hay commits nuevos en la rama)**
+
+Seguís en `feature/inscripciones` e hiciste commits adicionales después de `inscripciones.1` — pero querés graduar a estable sin incluir esos commits en el changelog:
+
+```bash
+tagman release
+```
+
+6. **Paso 1** — `my-pkg` aparece con su cantidad de commits pendientes.
+7. **Paso 2** — Se abre el multiselect de commits. Presioná `n` para desseleccionar todos, luego Enter.
+8. tagman detecta cero commits seleccionados sobre una versión pre-release y pregunta: `"No se seleccionaron commits para my-pkg (1.3.0-inscripciones.1). ¿Graduar a estable?"`
+9. Confirmás → tagman reordena el historial: reset al estado de código de `inscripciones.1`, crea el commit de graduación + tag `1.3.0` allí, luego re-aplica los commits adicionales encima.
+10. **Paso 3** — "Graduar a estable → `1.3.0`" se auto-sugiere. Confirmás.
+11. Se crea `my-pkg@1.3.0` apuntando exactamente al código de `inscripciones.1`. Los commits extra quedan encima como cambios pendientes para el próximo escaneo.
+
+> **Nota:** El Escenario B requiere que todos los commits desde el último tag pre-release no hayan sido pusheados. Si alguno ya fue pusheado a origin, tagman te avisará y volverá a la selección de commits.
 
 ---
 
