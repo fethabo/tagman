@@ -86,3 +86,25 @@
 * **fix:** corregidos errores que impedian el build @fethabo 3218893
 * **docs:** update readme @fethabo 92a9791
 * **feat:** agregada graduacion de prerelease-tag en flujo de seleccion de commits si no se selecciona ninguno. En este caso se taguea la misma version de codigo del tag, cambiando el tag e insertando el commit de tag junto al anterior. @fethabo 30b8d2a
+
+## [1.3.0](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0-alpha.6...@fethabo/tagman@1.3.0) (2026-04-15)
+
+* **chore(release):** [@fethabo/tagman] @fethabo 06a0739
+* **fix:** corregidos errores que impedian el build @fethabo 3218893
+* **docs:** update readme @fethabo 92a9791
+* **feat:** agregada graduacion de prerelease-tag en flujo de seleccion de commits si no se selecciona ninguno. En este caso se taguea la misma version de codigo del tag, cambiando el tag e insertando el commit de tag junto al anterior. @fethabo 30b8d2a
+* **chore(release):** [@fethabo/tagman] @fethabo 2f4dc13
+* **feat:** agregada posibilidad de manejar tags cuando no hay commits disponibles @fethabo fbf6db3
+* **chore(release):** [@fethabo/tagman] @fethabo 9d73151
+* **docs:** update readme @fethabo 18d440c
+* **feat:** agregada verificacion de cambios remota. feat: agregada vinculación del tag directamente con el ultimo commit seleccionado. De esta forma pueden realizarse tags sobre commits viejos, garantizando que el snapshot de código de ese tag sea el codigo del último commit seleccionado (cronológicamente) @fethabo c3810e1
+* **chore(release):** [@fethabo/tagman] @fethabo 75c0b75
+* agregado get de nombre de branch por defecto para los prereleases @fethabo 210c2c3
+* **chore(release):** [@fethabo/tagman] @fethabo d51b054
+* **fix:** corregido texto del menu @fethabo a7ee300
+* **chore(release):** [@fethabo/tagman] @fethabo 3e46d27
+* **feat:** agregado soporte para prereleases. fix: corregido backs en algunos steps. update texts @fethabo 0470fab
+* **chore(release):** [@fethabo/tagman] @fethabo ee8acc5
+* fix comments @fethabo 5d98812
+* **feat:** agregado menu inicial, fix: corregido back en steps de wizard @fethabo 3c8b23f
+* **refactor:** cambiadas opciones de menu por comandos para navegacion y visualizacion de info de commits. agregada posibilidad de seleccionar commits externos al package selecionado (cross-package-commits refs #7) @fethabo cbd3772
