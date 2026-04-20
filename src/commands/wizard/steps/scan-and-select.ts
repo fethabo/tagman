@@ -1,7 +1,7 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import semver from "semver";
-import { getCommitsForPath, getLastTagForPackage, getLastStableTagForPackage, getRepoCommitsSince, getCurrentBranch, getNotPushedHashes, git, type CommitInfo } from "../../../git/index.js";
+import { getCommitsForPath, getLastTagForPackage, getLastStableTagForPackage, getLatestRemoteStableVersion, getRepoCommitsSince, getCurrentBranch, getNotPushedHashes, git, type CommitInfo } from "../../../git/index.js";
 import { suggestBump } from "../../../core/commits.js";
 import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js";
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
@@ -456,6 +456,26 @@ export async function scanAndSelectPackages(
     } else if (bump === "graduate") {
       const parsed = semver.parse(currentVersion)!;
       newVersion = `${parsed.major}.${parsed.minor}.${parsed.patch}`;
+
+      const remoteSpinner = p.spinner();
+      remoteSpinner.start(t().scan.graduationCheckingRemote);
+      const latestRemoteStable = await getLatestRemoteStableVersion(pkgName);
+      remoteSpinner.stop("");
+
+      if (latestRemoteStable && semver.gte(latestRemoteStable, newVersion)) {
+        const suggestedNext = semver.inc(latestRemoteStable, "patch")!;
+        p.log.warn(t().scan.graduationConflictWarning(newVersion, latestRemoteStable));
+
+        const upgrade = await p.confirm({
+          message: t().scan.graduationConflictQuestion(suggestedNext),
+          initialValue: true,
+        });
+        if (p.isCancel(upgrade)) {
+          p.cancel(t().scan.cancelled);
+          return null;
+        }
+        if (upgrade) newVersion = suggestedNext;
+      }
     } else if (bump === "custom") {
       const customV = await p.text({
         message: t().scan.customVersion(pkgName),

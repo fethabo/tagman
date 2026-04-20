@@ -84,6 +84,9 @@ export type Messages = {
     graduationBlockedPushed: string;
     graduationBlockedReorder: string;
     extraOnlyHint: string;
+    graduationCheckingRemote: string;
+    graduationConflictWarning: (targetVersion: string, remoteVersion: string) => string;
+    graduationConflictQuestion: (suggestedVersion: string) => string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;

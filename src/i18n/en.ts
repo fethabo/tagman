@@ -86,6 +86,11 @@ export const en: Messages = {
     graduationBlockedPushed: "Cannot graduate at this code state: some commits since the pre-release tag have already been pushed.",
     graduationBlockedReorder: "Cannot graduate: a commit reorder is already in progress for another package in this run.",
     extraOnlyHint: "no new commits — shared commits available",
+    graduationCheckingRemote: "Checking remote for conflicting tags...",
+    graduationConflictWarning: (target, remote) =>
+      `Version ${target} is already taken on the remote (latest stable: ${remote}).`,
+    graduationConflictQuestion: (suggested) =>
+      `Upgrade graduation target to ${suggested} instead?`,
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `Create a Git tag for ${pkg}@${version}?`,

@@ -51,6 +51,25 @@ export async function getLastStableTagForPackage(packageName: string): Promise<s
 }
 
 /**
+ * Fetches remote tags and returns the highest stable (non-prerelease) version
+ * for a package. Returns null if the remote is unavailable or no stable tag exists.
+ */
+export async function getLatestRemoteStableVersion(packageName: string): Promise<string | null> {
+  try {
+    await git.fetch(["--tags", "--quiet"]);
+    const tags = await git.raw(["tag", "-l", `${packageName}@*`, "--sort=-v:refname"]);
+    const lines = tags.split("\n").filter(Boolean);
+    for (const tag of lines) {
+      const version = tag.slice(packageName.length + 1);
+      if (semver.prerelease(version) === null) return version;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Gets all commits that affected a specific path since a given tag.
  * If tag is null, gets all commits from the beginning.
  */
