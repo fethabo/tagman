@@ -117,3 +117,7 @@
 
 * **fix:** agregada verificacion de tags remotos al graduar a estable un canal. closes #16 a09d6f1
 * **docs:** update readme b3b5a15
+
+## [1.3.3](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.2...@fethabo/tagman@1.3.3) (2026-04-20)
+
+* **fix:** agregado back en step 2b 083ed1b
