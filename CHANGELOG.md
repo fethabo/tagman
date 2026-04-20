@@ -112,3 +112,8 @@
 ## [1.3.1](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.0...@fethabo/tagman@1.3.1) (2026-04-15)
 
 * **  feat:** mejoras y correcciones de issues #9 al #14 574a628
+
+## [1.3.2](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.1...@fethabo/tagman@1.3.2) (2026-04-20)
+
+* **fix:** agregada verificacion de tags remotos al graduar a estable un canal. closes #16 a09d6f1
+* **docs:** update readme b3b5a15
