@@ -299,9 +299,18 @@ export async function scanAndSelectPackages(
                 details: `${c.date} · ${c.author_name}`,
               })),
               [],           // none pre-selected
-              undefined,    // no go-back shortcut in step 2b
+              pkgInfo.isExtraOnly ? t().scan.goBackToPackages : t().scan.goBack,
               true,         // allowEmpty — this step is optional
             );
+
+            if (extraHashes === COMMIT_BACK) {
+              if (pkgInfo.isExtraOnly) {
+                return "back";
+              } else {
+                goBackToCommits = true;
+                continue;
+              }
+            }
 
             if (p.isCancel(extraHashes)) {
               p.cancel(t().scan.cancelled);
