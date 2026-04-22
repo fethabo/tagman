@@ -16,6 +16,7 @@ import { saveCheckpoint, clearCheckpoint, type ReleaseState } from "../../../cor
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
 import type { TagmanConfig } from "../../../config.js";
 import { t } from "../../../i18n/index.js";
+import { wizardSelect, SELECT_BACK } from "../wizard-select.js";
 
 export type ExecuteOptions = {
   dryRun?: boolean;
@@ -44,7 +45,7 @@ export async function executeRelease(
   isRecovered: boolean,
   recoveredStep: "writing" | "committing" | null,
   options: ExecuteOptions = {}
-): Promise<void> {
+): Promise<"back" | void> {
   const { dryRun = false, json = false, push = false, yes = false } = options;
 
   if (dryRun) {
@@ -62,12 +63,18 @@ export async function executeRelease(
 
   if (!isRecovered) {
     if (!yes) {
-      const execute = await p.confirm({
-        message: t().execute.confirmProceed,
-        initialValue: false,
-      });
+      const execute = await wizardSelect(
+        t().execute.confirmProceed,
+        [
+          { value: "yes", label: t().execute.confirmYes },
+          { value: "no",  label: t().execute.confirmNo },
+        ],
+        "yes",
+        t().execute.goBack,
+      );
 
-      if (p.isCancel(execute) || !execute) {
+      if (execute === SELECT_BACK) return "back";
+      if (p.isCancel(execute) || execute === "no") {
         p.cancel(t().execute.cancelled);
         return;
       }

@@ -97,6 +97,9 @@ export type Messages = {
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;
+    createTagYes: string;
+    createTagNo: string;
+    goBackToPrevious: string;
     autoGenLabel: string;
     actionSelect: string;
     useAuto: string;
@@ -111,9 +114,16 @@ export type Messages = {
     customInput: string;
     cancelToBack: string;
     cancelled: string;
+    noTagsWarning: string;
+    tagSummaryTitle: string;
+    tagSummaryCreate: string;
+    tagSummarySkip: string;
   };
   execute: {
     confirmProceed: string;
+    confirmYes: string;
+    confirmNo: string;
+    goBack: string;
     cancelled: string;
     writing: string;
     writingError: string;

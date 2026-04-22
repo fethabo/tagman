@@ -76,22 +76,62 @@ export async function runWizardFlow(
         if (newState === "back") continue;
         state = newState;
 
-        if (!options.dryRun) {
-          const tagResult = await promptTagMessages(state);
-          if (tagResult === false) return;
-          if (tagResult === "back") continue;
+        // Snapshot scan-generated tag messages; restored before each re-entry into tag-messages
+        const origTagMessages = new Map(
+          Array.from(state.entries()).map(([n, d]) => [n, d.tagMessage])
+        );
+
+        // Inner loop: tag-messages ↔ execute confirm (back navigates between them)
+        let backToScan = false;
+        while (true) {
+          if (!options.dryRun) {
+            for (const [name, msg] of origTagMessages) {
+              state.get(name)!.tagMessage = msg;
+            }
+            const tagResult = await promptTagMessages(state);
+            if (tagResult === false) return;
+            if (tagResult === "back") { backToScan = true; break; }
+
+            const hasTags = Array.from(state.values()).some(d => d.tagMessage);
+            if (!hasTags) {
+              p.log.warn(t().tagMessages.noTagsWarning);
+              continue;
+            }
+
+            const hasNoTags = Array.from(state.values()).some(d => !d.tagMessage);
+            if (hasNoTags) {
+              const lines = Array.from(state.entries())
+                .map(([name, d]) => d.tagMessage
+                  ? `  ✓ ${name}@${d.newVersion}  · ${t().tagMessages.tagSummaryCreate}`
+                  : `  ✗ ${name}@${d.newVersion}  · ${t().tagMessages.tagSummarySkip}`)
+                .join("\n");
+              p.note(lines, t().tagMessages.tagSummaryTitle);
+            }
+          }
+
+          const execResult = await executeRelease(state, pkgs, cfg, isRecovered, recoveredStep, {
+            dryRun: options.dryRun,
+            json: options.json,
+            push: options.push,
+            yes: options.yes,
+          });
+          if (execResult === "back") continue;
+          return;
         }
 
+        if (backToScan) continue;
         break;
       }
     }
 
-    await executeRelease(state, pkgs, cfg, isRecovered, recoveredStep, {
-      dryRun: options.dryRun,
-      json: options.json,
-      push: options.push,
-      yes: options.yes,
-    });
+    if (isRecovered) {
+      await executeRelease(state, pkgs, cfg, isRecovered, recoveredStep, {
+        dryRun: options.dryRun,
+        json: options.json,
+        push: options.push,
+        yes: options.yes,
+      });
+    }
   } catch (err: any) {
     p.log.error(err.message);
     p.outro(t().wizard.error);
