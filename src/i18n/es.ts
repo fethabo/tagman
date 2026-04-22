@@ -124,6 +124,18 @@ export const es: Messages = {
     tagSummaryCreate: "crear tag",
     tagSummarySkip: "omitir tag",
   },
+  draft: {
+    found: (date) => `Se encontró un borrador guardado el ${date}.`,
+    resumeQuestion: "¿Querés retomarlo?",
+    resume: "Retomar borrador",
+    discard: "Descartar y empezar de nuevo",
+    summaryTitle: "Resumen del release planificado",
+    actionQuestion: "¿Qué querés hacer?",
+    proceed: "Continuar con el release",
+    save: "Guardar como borrador y salir",
+    goBack: "Volver a editar las selecciones",
+    saved: "Borrador guardado. Podés retomarlo la próxima vez que ejecutés tagman.",
+  },
   execute: {
     confirmProceed: "Todo listo. ¿Proceder con la escritura, commits y tags?",
     confirmYes: "Sí, proceder",

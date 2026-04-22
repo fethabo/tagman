@@ -119,6 +119,18 @@ export type Messages = {
     tagSummaryCreate: string;
     tagSummarySkip: string;
   };
+  draft: {
+    found: (date: string) => string;
+    resumeQuestion: string;
+    resume: string;
+    discard: string;
+    summaryTitle: string;
+    actionQuestion: string;
+    proceed: string;
+    save: string;
+    goBack: string;
+    saved: string;
+  };
   execute: {
     confirmProceed: string;
     confirmYes: string;

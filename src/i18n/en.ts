@@ -124,6 +124,18 @@ export const en: Messages = {
     tagSummaryCreate: "create tag",
     tagSummarySkip: "skip tag",
   },
+  draft: {
+    found: (date) => `A draft was found from ${date}.`,
+    resumeQuestion: "Do you want to resume it?",
+    resume: "Resume draft",
+    discard: "Discard and start fresh",
+    summaryTitle: "Planned release summary",
+    actionQuestion: "What do you want to do?",
+    proceed: "Proceed with the release",
+    save: "Save as draft and exit",
+    goBack: "Go back to edit selections",
+    saved: "Draft saved. You can resume it next time you run tagman.",
+  },
   execute: {
     confirmProceed: "All set. Proceed with writing, commits and tags?",
     confirmYes: "Yes, proceed",

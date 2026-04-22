@@ -39,6 +39,8 @@ src/
                                     (feat → minor, BREAKING CHANGE → major)
     checkpoint.ts                   Persists ReleaseState to .tagman-checkpoint.json;
                                     step values: "writing" | "committing"
+    draft.ts                        Persists planned ReleaseState to .tagman-draft.json before
+                                    execution begins; hasDraft/loadDraft/saveDraft/clearDraft
     updater.ts                      Writes package.json versions, appends CHANGELOG.md entries,
                                     updates consumer dependency refs; rollback counterparts
     token.ts                        resolveGithubToken() — priority: GITHUB_TOKEN env →
@@ -89,7 +91,7 @@ bin/
 
 **Data flow:**
 `loadConfig` → `showMainMenu` →
-- **[release]** `getWorkspacePackages` → `handleCheckpoint` → `scanAndSelectPackages` → `promptTagMessages` → `executeRelease` → `runAfterRelease`
+- **[release]** `getWorkspacePackages` → `handleCheckpoint` → `[checkDraft]` → `scanAndSelectPackages` → `[showScanSummary+draftSave]` → `promptTagMessages` → `executeRelease` → `runAfterRelease`
 - **[github-release]** `runGithubReleaseFlow`
 
 **Key types:**
@@ -249,6 +251,14 @@ If commits exist that are older than the selected range for a package, tagman of
 ### Remote sync check
 `handleCheckpoint()` calls `getRemoteBehindCount()`. If `requireRemoteSync: true` in config, blocks the release. Otherwise shows a warning and asks for confirmation.
 
+### Draft saving (issue #24)
+After `scanAndSelectPackages` completes, a summary screen shows the planned changes (package → old version → new version, commit count) and offers three options:
+- **Continuar / Proceed** — moves to the tag-messages step normally
+- **Guardar borrador / Save as draft** — serializes the state map to `.tagman-draft.json` and exits
+- **Volver / Go back** — loops back to the scan step
+
+On the next run, if a draft file is detected, the user is offered to resume (skips scan, loads state into tag-messages) or discard it. Draft saving is skipped in `--yes`, `--dry-run`, and `--json` modes. Implementation: `src/core/draft.ts` (save/load/clear/has), integrated in `src/commands/wizard/index.ts`.
+
 ---
 
 ## Scope Restrictions
@@ -258,6 +268,7 @@ If commits exist that are older than the selected range for a package, tagman of
 
 **Do not commit these runtime/generated files** (they are gitignored):
 - `.tagman-checkpoint.json` — crash recovery state
+- `.tagman-draft.json` — saved wizard draft (pre-execution)
 - `.tagman-release.log` — release audit log
 - `dist/` — build output
 

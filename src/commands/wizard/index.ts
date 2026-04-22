@@ -8,6 +8,8 @@ import { scanAndSelectPackages } from "./steps/scan-and-select.js";
 import { promptTagMessages } from "./steps/tag-messages.js";
 import { executeRelease } from "./steps/execute.js";
 import { runGithubReleaseFlow } from "../github-release.js";
+import { hasDraft, loadDraft, saveDraft, clearDraft } from "../../core/draft.js";
+import { wizardSelect, SELECT_BACK } from "./wizard-select.js";
 import { setLocale, t, type Locale } from "../../i18n/index.js";
 import { VERSION } from "../../version.js";
 
@@ -46,39 +48,103 @@ export async function runWizardFlow(
     }
 
     if (!isRecovered) {
-      while (true) {
-        const newState = await scanAndSelectPackages(pkgs, cfg, {
-          packages: options.packages,
-          bump: options.bump,
-          yes: options.yes,
-        });
-
-        if (newState === null) return;
-
-        if (newState === "no-commits") {
-          const next = await p.select({
-            message: t().scan.nothingToReleaseMenu,
-            options: [
-              { value: "github", label: t().menu.githubRelease, hint: t().menu.githubReleaseHint },
-              { value: "exit", label: t().menu.exit },
+      // Check for a saved draft and offer to resume it
+      let resumeFromDraft = false;
+      if (!options.yes && !options.dryRun && !options.json && await hasDraft()) {
+        const draftData = await loadDraft();
+        if (draftData) {
+          const dateStr = new Date(draftData.savedAt).toLocaleString();
+          p.log.info(t().draft.found(dateStr));
+          const draftAction = await wizardSelect(
+            t().draft.resumeQuestion,
+            [
+              { value: "resume",  label: t().draft.resume },
+              { value: "discard", label: t().draft.discard },
             ],
+            "resume",
+            undefined,
+          );
+          if (p.isCancel(draftAction)) {
+            p.cancel(t().scan.cancelled);
+            return;
+          }
+          if (draftAction === "resume") {
+            state = draftData.state;
+            await clearDraft();
+            resumeFromDraft = true;
+          } else {
+            await clearDraft();
+          }
+        }
+      }
+
+      while (true) {
+        if (!resumeFromDraft) {
+          const newState = await scanAndSelectPackages(pkgs, cfg, {
+            packages: options.packages,
+            bump: options.bump,
+            yes: options.yes,
           });
 
-          if (p.isCancel(next) || next === "exit") {
-            p.outro(t().wizard.bye);
-          } else if (next === "github") {
-            await runGithubReleaseFlow(cfg);
-            p.outro(t().wizard.bye);
-          }
-          return;
-        }
+          if (newState === null) return;
 
-        if (newState === "back") continue;
-        state = newState;
+          if (newState === "no-commits") {
+            const next = await p.select({
+              message: t().scan.nothingToReleaseMenu,
+              options: [
+                { value: "github", label: t().menu.githubRelease, hint: t().menu.githubReleaseHint },
+                { value: "exit", label: t().menu.exit },
+              ],
+            });
+
+            if (p.isCancel(next) || next === "exit") {
+              p.outro(t().wizard.bye);
+            } else if (next === "github") {
+              await runGithubReleaseFlow(cfg);
+              p.outro(t().wizard.bye);
+            }
+            return;
+          }
+
+          if (newState === "back") continue;
+          state = newState;
+
+          // Post-scan summary with draft-save option (interactive mode only)
+          if (!options.dryRun && !options.yes) {
+            const summaryLines = Array.from(state.entries())
+              .map(([name, d]) => `  ${name}: ${d.pkg.manifest.version} → ${d.newVersion}  (${d.commits.length} commit(s))`)
+              .join("\n");
+            p.note(summaryLines, t().draft.summaryTitle);
+
+            const summaryAction = await wizardSelect(
+              t().draft.actionQuestion,
+              [
+                { value: "proceed", label: t().draft.proceed },
+                { value: "save",    label: t().draft.save },
+                { value: "back",    label: t().draft.goBack },
+              ],
+              "proceed",
+              undefined,
+            );
+
+            if (p.isCancel(summaryAction) || summaryAction === SELECT_BACK) {
+              p.cancel(t().scan.cancelled);
+              return;
+            }
+            if (summaryAction === "save") {
+              await saveDraft(state);
+              p.outro(t().draft.saved);
+              return;
+            }
+            if (summaryAction === "back") continue;
+            // "proceed" → fall through to inner loop
+          }
+        }
+        resumeFromDraft = false;
 
         // Snapshot scan-generated tag messages; restored before each re-entry into tag-messages
         const origTagMessages = new Map(
-          Array.from(state.entries()).map(([n, d]) => [n, d.tagMessage])
+          Array.from(state!.entries()).map(([n, d]) => [n, d.tagMessage])
         );
 
         // Inner loop: tag-messages ↔ execute confirm (back navigates between them)
@@ -86,21 +152,21 @@ export async function runWizardFlow(
         while (true) {
           if (!options.dryRun) {
             for (const [name, msg] of origTagMessages) {
-              state.get(name)!.tagMessage = msg;
+              state!.get(name)!.tagMessage = msg;
             }
-            const tagResult = await promptTagMessages(state);
+            const tagResult = await promptTagMessages(state!);
             if (tagResult === false) return;
             if (tagResult === "back") { backToScan = true; break; }
 
-            const hasTags = Array.from(state.values()).some(d => d.tagMessage);
+            const hasTags = Array.from(state!.values()).some(d => d.tagMessage);
             if (!hasTags) {
               p.log.warn(t().tagMessages.noTagsWarning);
               continue;
             }
 
-            const hasNoTags = Array.from(state.values()).some(d => !d.tagMessage);
+            const hasNoTags = Array.from(state!.values()).some(d => !d.tagMessage);
             if (hasNoTags) {
-              const lines = Array.from(state.entries())
+              const lines = Array.from(state!.entries())
                 .map(([name, d]) => d.tagMessage
                   ? `  ✓ ${name}@${d.newVersion}  · ${t().tagMessages.tagSummaryCreate}`
                   : `  ✗ ${name}@${d.newVersion}  · ${t().tagMessages.tagSummarySkip}`)
@@ -109,7 +175,7 @@ export async function runWizardFlow(
             }
           }
 
-          const execResult = await executeRelease(state, pkgs, cfg, isRecovered, recoveredStep, {
+          const execResult = await executeRelease(state!, pkgs, cfg, isRecovered, recoveredStep, {
             dryRun: options.dryRun,
             json: options.json,
             push: options.push,
