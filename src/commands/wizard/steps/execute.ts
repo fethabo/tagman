@@ -174,25 +174,29 @@ export async function executeRelease(
     }
   }
 
-  let doPush = push;
-  if (!push) {
-    const shouldPush = await p.confirm({
-      message: t().execute.pushQuestion,
-      initialValue: true,
-    });
-    doPush = !p.isCancel(shouldPush) && shouldPush;
-  }
+  // Only offer to push if at least one tag was actually created (#25)
+  let doPush = false;
+  if (createdTags.length > 0) {
+    doPush = push;
+    if (!push) {
+      const shouldPush = await p.confirm({
+        message: t().execute.pushQuestion,
+        initialValue: true,
+      });
+      doPush = !p.isCancel(shouldPush) && shouldPush;
+    }
 
-  if (doPush) {
-    const pushSpinner = p.spinner();
-    pushSpinner.start(t().execute.pushing);
-    try {
-      await pushRelease();
-      pushSpinner.stop(t().execute.pushDone);
-    } catch (e: any) {
-      pushSpinner.stop(t().execute.pushSpinnerError);
-      p.log.error(t().execute.pushError(e.message));
-      p.log.warn(t().execute.pushFallback);
+    if (doPush) {
+      const pushSpinner = p.spinner();
+      pushSpinner.start(t().execute.pushing);
+      try {
+        await pushRelease();
+        pushSpinner.stop(t().execute.pushDone);
+      } catch (e: any) {
+        pushSpinner.stop(t().execute.pushSpinnerError);
+        p.log.error(t().execute.pushError(e.message));
+        p.log.warn(t().execute.pushFallback);
+      }
     }
   }
 
@@ -210,6 +214,7 @@ export async function executeRelease(
         ghSpinner.start(t().execute.githubCreating);
         const urls: string[] = [];
         for (const [pkgName, details] of state.entries()) {
+          if (!details.tagMessage) continue; // skip packages where user declined tag creation (#25)
           try {
             const tagName = buildTagName(pkgName, details.newVersion, config);
             const isPrerelease = details.githubPrerelease ?? config.github.prerelease ?? false;
@@ -228,6 +233,11 @@ export async function executeRelease(
         }
         ghSpinner.stop(t().execute.githubDone(urls.length));
         for (const url of urls) p.log.info(`  ${url}`);
+        // Warn if releases were expected but none created (#17)
+        const packagesWithTags = Array.from(state.values()).filter(d => d.tagMessage).length;
+        if (packagesWithTags > 0 && urls.length === 0) {
+          p.log.warn(t().execute.githubSkippedPrerelease);
+        }
       }
     }
   }

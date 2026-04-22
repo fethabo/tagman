@@ -8,19 +8,38 @@ export type CommitOpt = { value: string; label: string; details?: string };
 export const COMMIT_BACK = Symbol('commitSelectBack');
 
 /**
+ * Wraps GitHub issue references in OSC 8 hyperlinks for supporting terminals.
+ * Falls back gracefully (no visible change) in terminals that don't support OSC 8.
+ */
+export function linkifyCommitMessage(msg: string, repoUrl: string | null): string {
+  if (!repoUrl) return msg;
+  // Linkify cross-repo references first (owner/repo#N) to avoid double-processing
+  const linked = msg.replace(/([\w.-]+\/[\w.-]+)#(\d+)/g, (_match, repo, num) => {
+    const url = `https://github.com/${repo}/issues/${num}`;
+    return `\x1b]8;;${url}\x1b\\${repo}#${num}\x1b]8;;\x1b\\`;
+  });
+  // Then linkify same-repo references (#N) not preceded by a slash or word char
+  return linked.replace(/(^|[^/\w])#(\d+)/g, (match, prefix, num) => {
+    const url = `${repoUrl}/issues/${num}`;
+    return `${prefix}\x1b]8;;${url}\x1b\\#${num}\x1b]8;;\x1b\\`;
+  });
+}
+
+/**
  * Interactive multiselect for commits.
  *
- * The list contains only real commits. All controls are keyboard shortcuts
- * shown in a hint line at the bottom:
- *
- *   a         — select all commits
- *   n         — deselect all commits (none)
- *   d         — toggle date & author inline (reads CommitOpt.details)
- *   b         — go back to package selection (only when goBackLabel is provided)
+ * Keyboard shortcuts shown in the hint line:
+ *   ↑↓        — navigate
+ *   space      — select/deselect item
+ *   enter      — confirm selection
+ *   a          — select all commits
+ *   n          — deselect all commits
+ *   d          — toggle date & author inline
+ *   b          — go back (only when goBackLabel is provided)
  *
  * Parameters:
  *   goBackLabel  — when set, enables the [b] shortcut and shows it in the hint line
- *   allowEmpty   — when true, skips the "select at least one" validation (for optional extras)
+ *   allowEmpty   — when true, skips the "select at least one" validation
  */
 export async function commitMultiSelect(
   message: string,
@@ -37,8 +56,9 @@ export async function commitMultiSelect(
 
   const styleOpt = (opt: CommitOpt, isActive: boolean, val: string[]) => {
     const baseLabel = opt.label;
+    // Details are pre-colored; don't wrap in dim here — state drives dimming below
     const label = showDetails && opt.details
-      ? `${baseLabel}  ${color.dim(opt.details)}`
+      ? `${baseLabel}  ${opt.details}`
       : baseLabel;
     const selected = val.includes(opt.value);
     if (isActive && selected) return `${color.green(p.S_CHECKBOX_SELECTED)} ${label}`;
@@ -84,15 +104,19 @@ export async function commitMultiSelect(
           return `${header}${eBar}${items.join(`\n${eBar}`)}\n${color.yellow(p.S_BAR_END)}  ${color.yellow(this.error)}\n`;
         }
         default: {
+          const sep = `  ${color.dim('·')}  `;
           const hintParts: string[] = [
+            `${color.dim('[↑↓]')} ${color.dim(t().scan.navUpDown)}`,
+            `${color.dim('[space]')} ${color.dim(t().scan.navSelect)}`,
+            `${color.dim('[enter]')} ${color.dim(t().scan.navConfirm)}`,
             `${color.dim('[a]')} ${color.dim(t().scan.selectAll)}`,
             `${color.dim('[n]')} ${color.dim(t().scan.deselectAll)}`,
             `${color.dim('[d]')} ${color.dim(showDetails ? t().scan.hideDetails : t().scan.showDetails)}`,
           ];
           if (goBackLabel !== undefined) {
-            hintParts.push(`${color.dim('[b]')} ${color.dim(t().scan.goBackToPackages)}`);
+            hintParts.push(`${color.dim('[b]')} ${color.dim(goBackLabel)}`);
           }
-          const hint = hintParts.join(`  ${color.dim('·')}  `);
+          const hint = hintParts.join(sep);
           const items = p.limitOptions({ cursor, options: allOptions, columnPadding: bar.length, rowPadding: rowCount + 3, style });
           return `${header}${bar}${items.join(`\n${bar}`)}\n${bar}${hint}\n${color.cyan(p.S_BAR_END)}\n`;
         }

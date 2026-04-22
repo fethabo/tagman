@@ -87,6 +87,13 @@ export type Messages = {
     graduationCheckingRemote: string;
     graduationConflictWarning: (targetVersion: string, remoteVersion: string) => string;
     graduationConflictQuestion: (suggestedVersion: string) => string;
+    navUpDown: string;
+    navSelect: string;
+    navConfirm: string;
+    selectExtraCommitsCount: (count: number, lastTag: string | null) => string;
+    cascadeGoBack: string;
+    cascadeYes: string;
+    cascadeNo: string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;
@@ -138,5 +145,6 @@ export type Messages = {
     reorderLifting: string;
     reorderDone: string;
     reorderFailed: (msg: string) => string;
+    githubSkippedPrerelease: string;
   };
 };

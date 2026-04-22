@@ -91,6 +91,14 @@ export const en: Messages = {
       `Version ${target} is already taken on the remote (latest stable: ${remote}).`,
     graduationConflictQuestion: (suggested) =>
       `Upgrade graduation target to ${suggested} instead?`,
+    navUpDown: "navigate",
+    navSelect: "select",
+    navConfirm: "confirm",
+    selectExtraCommitsCount: (count, lastTag) =>
+      lastTag ? `${count} commit(s) · since ${lastTag}` : `${count} commit(s)`,
+    cascadeGoBack: "Go back to step 3",
+    cascadeYes: "Yes",
+    cascadeNo: "No",
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `Create a Git tag for ${pkg}@${version}?`,
@@ -136,6 +144,7 @@ export const en: Messages = {
     npmDone: "Publishing complete.",
     npmPublished: (pkg, version) => `  ✓ ${pkg}@${version} published`,
     npmFailed: (pkg, msg) => `  npm publish failed for ${pkg}: ${msg}`,
+    githubSkippedPrerelease: "GitHub Releases skipped: pre-release versions are not published automatically. Use `tagman github-release` to publish them manually.",
     done: "Release complete! Versions generated successfully.",
     dryRunHeader: "--- DRY RUN: changes that would be applied ---",
     dryRunDone: "Dry run complete. No changes were made.",

@@ -1,6 +1,7 @@
 import { SelectPrompt, wrapTextWithPrefix } from "@clack/core";
 import * as p from "@clack/prompts";
 import color from "picocolors";
+import { t } from "../../i18n/index.js";
 
 export type SelectOpt<T> = { value: T; label: string; hint?: string };
 
@@ -59,10 +60,12 @@ export async function wizardSelect<T>(
           return `${header}${color.gray(p.S_BAR)}\n`;
         default: {
           const items = p.limitOptions({ cursor, options, columnPadding: bar.length, rowPadding: rowCount + 3, style });
-          const hint     = backLabel !== undefined
-            ? `${color.dim('[b]')} ${color.dim(backLabel)}`
+          const sep = `  ${color.dim('·')}  `;
+          const navHint = `${color.dim('[↑↓]')} ${color.dim(t().scan.navUpDown)}${sep}${color.dim('[enter]')} ${color.dim(t().scan.navConfirm)}`;
+          const backHint = backLabel !== undefined
+            ? `${sep}${color.dim('[b]')} ${color.dim(backLabel)}`
             : '';
-          const hintLine = hint ? `\n${bar}${hint}` : '';
+          const hintLine = `\n${bar}${navHint}${backHint}`;
           return `${header}${bar}${items.join(`\n${bar}`)}\n${bar}${hintLine}\n${color.cyan(p.S_BAR_END)}\n`;
         }
       }
