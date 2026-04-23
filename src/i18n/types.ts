@@ -130,6 +130,8 @@ export type Messages = {
     save: string;
     goBack: string;
     saved: string;
+    detailsShow: string;
+    detailsHide: string;
   };
   execute: {
     confirmProceed: string;

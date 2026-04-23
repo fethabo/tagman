@@ -135,6 +135,8 @@ export const en: Messages = {
     save: "Save as draft and exit",
     goBack: "Go back to edit selections",
     saved: "Draft saved. You can resume it next time you run tagman.",
+    detailsShow: "show commits",
+    detailsHide: "hide commits",
   },
   execute: {
     confirmProceed: "All set. Proceed with writing, commits and tags?",

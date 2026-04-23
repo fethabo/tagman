@@ -135,6 +135,8 @@ export const es: Messages = {
     save: "Guardar como borrador y salir",
     goBack: "Volver a editar las selecciones",
     saved: "Borrador guardado. Podés retomarlo la próxima vez que ejecutés tagman.",
+    detailsShow: "ver commits",
+    detailsHide: "ocultar commits",
   },
   execute: {
     confirmProceed: "Todo listo. ¿Proceder con la escritura, commits y tags?",

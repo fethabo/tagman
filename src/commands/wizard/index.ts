@@ -10,6 +10,7 @@ import { executeRelease } from "./steps/execute.js";
 import { runGithubReleaseFlow } from "../github-release.js";
 import { hasDraft, loadDraft, saveDraft, clearDraft } from "../../core/draft.js";
 import { wizardSelect, SELECT_BACK } from "./wizard-select.js";
+import { showDraftResumePrompt } from "./draft-resume-prompt.js";
 import { setLocale, t, type Locale } from "../../i18n/index.js";
 import { VERSION } from "../../version.js";
 
@@ -55,19 +56,7 @@ export async function runWizardFlow(
         if (draftData) {
           const dateStr = new Date(draftData.savedAt).toLocaleString();
           p.log.info(t().draft.found(dateStr));
-          const draftSummaryLines = Array.from(draftData.state.entries())
-            .map(([name, d]) => `  ${name}: ${d.pkg.manifest.version} → ${d.newVersion}  (${d.commits.length} commit(s))`)
-            .join("\n");
-          p.note(draftSummaryLines, t().draft.summaryTitle);
-          const draftAction = await wizardSelect(
-            t().draft.resumeQuestion,
-            [
-              { value: "resume",  label: t().draft.resume },
-              { value: "discard", label: t().draft.discard },
-            ],
-            "resume",
-            undefined,
-          );
+          const draftAction = await showDraftResumePrompt(draftData.state);
           if (p.isCancel(draftAction)) {
             p.cancel(t().scan.cancelled);
             return;
@@ -131,7 +120,7 @@ export async function runWizardFlow(
               undefined,
             );
 
-            if (p.isCancel(summaryAction) || summaryAction === SELECT_BACK) {
+            if (p.isCancel(summaryAction) || (summaryAction as unknown) === SELECT_BACK) {
               p.cancel(t().scan.cancelled);
               return;
             }
