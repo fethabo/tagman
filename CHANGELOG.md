@@ -137,3 +137,7 @@
 ## [1.3.6](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.5...@fethabo/tagman@1.3.6) (2026-04-23)
 
 * **fix:** corregido step2 para candidatos de graduacion 4c0e14e
+
+## [1.3.7](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.6...@fethabo/tagman@1.3.7) (2026-04-23)
+
+* **fix:** corregida inclusion de commits no seleccionados en tag de prerelease a7c0694
