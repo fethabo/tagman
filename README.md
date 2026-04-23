@@ -116,11 +116,26 @@ tagman reads an optional `tagman.config.json` file from your project root. Witho
 | `annotationMessage` | `string` | — | Prefix text added to every generated tag annotation |
 | `requireRemoteSync` | `boolean` | `false` | When `true`, blocks the release if the local branch is behind origin (instead of just warning) |
 | `github.createRelease` | `boolean` | `false` | Create a GitHub Release per package after push |
-| `github.token` | `string` | — | GitHub token. Falls back to `GITHUB_TOKEN` env var |
+| `github.token` | `string` | — | GitHub token. Falls back to `GITHUB_TOKEN` env var. See Security Model below. |
 | `github.prerelease` | `boolean` | `false` | Mark GitHub Releases as pre-release |
 | `npm.publish` | `boolean` | `false` | Run `pnpm publish` for each package after tagging |
 | `npm.access` | `"public" \| "restricted"` | `"public"` | npm publish access level |
 | `plugins` | `string[]` | — | Paths to ESM plugin files (relative to project root) |
+
+### Security Model
+
+tagman is a local Git and versioning CLI. To work correctly, it requires access to your shell environment and selected environment variables.
+
+| Requirement | Why it is needed |
+|---|---|
+| Shell access to `git` and your package manager (`pnpm`, `npm`, `yarn`, or `bun`) | tagman scans commit history, creates release commits and tags, and can run publish/release integrations. |
+| File system read/write access in your repository | tagman reads and updates files such as `package.json`, `CHANGELOG.md`, and local checkpoint/draft state files. |
+| Environment variables (for example `GITHUB_TOKEN`, npm auth variables) | Required when creating GitHub Releases and/or publishing packages to registries. |
+
+Security notes:
+- tagman runs locally in your current repository and uses your current shell user permissions.
+- Store secrets in environment variables or CI/CD secret stores instead of committing them to `tagman.config.json`.
+- If a token is missing, only token-dependent actions fail; local scanning/versioning and tagging flows can still run.
 
 ### Keyboard Shortcuts
 
@@ -660,11 +675,26 @@ tagman lee un archivo opcional `tagman.config.json` en la raíz de tu proyecto. 
 | `annotationMessage` | `string` | — | Texto prefijo agregado a la anotación de cada tag generado |
 | `requireRemoteSync` | `boolean` | `false` | Cuando es `true`, bloquea el release si la rama local está desactualizada respecto a origin (en lugar de solo advertir) |
 | `github.createRelease` | `boolean` | `false` | Crear un GitHub Release por paquete luego del push |
-| `github.token` | `string` | — | Token de GitHub. Si no se especifica, usa la variable de entorno `GITHUB_TOKEN` |
+| `github.token` | `string` | — | Token de GitHub. Si no se especifica, usa la variable de entorno `GITHUB_TOKEN`. Ver Modelo de Seguridad abajo. |
 | `github.prerelease` | `boolean` | `false` | Marcar los GitHub Releases como pre-release |
 | `npm.publish` | `boolean` | `false` | Ejecutar `pnpm publish` para cada paquete tras el tagging |
 | `npm.access` | `"public" \| "restricted"` | `"public"` | Nivel de acceso en la publicación de npm |
 | `plugins` | `string[]` | — | Rutas a archivos de plugin ESM (relativas a la raíz del proyecto) |
+
+### Modelo de Seguridad
+
+tagman es una CLI local de Git y versionado. Para funcionar correctamente, necesita acceso al entorno de shell y a ciertas variables de entorno.
+
+| Requisito | Por qué se necesita |
+|---|---|
+| Acceso de shell a `git` y al gestor de paquetes (`pnpm`, `npm`, `yarn` o `bun`) | tagman escanea historial de commits, crea commits de release y tags, y puede ejecutar integraciones de publicación/release. |
+| Acceso de lectura/escritura al sistema de archivos del repositorio | tagman lee y actualiza archivos como `package.json`, `CHANGELOG.md` y archivos locales de estado (checkpoint/draft). |
+| Variables de entorno (por ejemplo `GITHUB_TOKEN`, variables de autenticación de npm) | Necesarias al crear GitHub Releases y/o publicar paquetes en registries. |
+
+Notas de seguridad:
+- tagman corre localmente en tu repositorio actual y usa los permisos de tu usuario de shell.
+- Guardá secretos en variables de entorno o en secretos de CI/CD en lugar de commitearlos en `tagman.config.json`.
+- Si falta un token, solo fallan las acciones que dependen de ese token; los flujos locales de escaneo/versionado y tagging pueden seguir ejecutándose.
 
 ### Atajos de Teclado
 
