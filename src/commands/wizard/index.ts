@@ -55,6 +55,10 @@ export async function runWizardFlow(
         if (draftData) {
           const dateStr = new Date(draftData.savedAt).toLocaleString();
           p.log.info(t().draft.found(dateStr));
+          const draftSummaryLines = Array.from(draftData.state.entries())
+            .map(([name, d]) => `  ${name}: ${d.pkg.manifest.version} → ${d.newVersion}  (${d.commits.length} commit(s))`)
+            .join("\n");
+          p.note(draftSummaryLines, t().draft.summaryTitle);
           const draftAction = await wizardSelect(
             t().draft.resumeQuestion,
             [
