@@ -121,3 +121,11 @@
 ## [1.3.3](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.2...@fethabo/tagman@1.3.3) (2026-04-20)
 
 * **fix:** agregado back en step 2b 083ed1b
+
+## [1.3.4](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.3...@fethabo/tagman@1.3.4) (2026-04-23)
+
+* **fix:** agregado detalle de commits en resumen de borrador. ref #27 49ddbe7
+* **fix:** agregada info del borrador cargado. closes #27 cbf2c7a
+* **feat:** guardado de borrador post-scan y cierre de issues #24 #25 #26 18759c7
+* ** fix:** restore auto-generated tag messages on back navigation; block tagless proceed 9b77a0c
+* **feat:** resolución de issues #17, #19, #20, #21, #22, #23, #25 a10e18d
