@@ -58,10 +58,11 @@ export async function scanAndSelectPackages(
     } else if (semver.prerelease(pkg.manifest.version) !== null) {
       const lastStableTag = await getLastStableTagForPackage(pkg.manifest.name);
       const cycleCommits = await getCommitsForPath(pkg.dir, lastStableTag);
+      const extraCommits = await getRepoCommitsSince(lastTag);
       graduationCandidates.push({
         pkg,
         commits: cycleCommits,
-        extraCommits: [],
+        extraCommits,
         lastTag,
         isGraduation: true,
       });
@@ -170,7 +171,30 @@ export async function scanAndSelectPackages(
         if (globalBump !== undefined || yes) {
           chosenCommits = pkgInfo.isExtraOnly ? pkgInfo.extraCommits : pkgInfo.commits;
         } else if (pkgInfo.isGraduation) {
-          chosenCommits = pkgInfo.commits;
+          let graduationExtraCommits: CommitInfo[] = [];
+          if (pkgInfo.extraCommits.length > 0) {
+            const extraCountInfo = color.dim(`(${t().scan.selectExtraCommitsCount(pkgInfo.extraCommits.length, pkgInfo.lastTag)})`);
+            const extraHashes = await commitMultiSelect(
+              `${t().scan.selectExtraCommits(pkgName)} ${color.cyan(pkgName)} ${extraCountInfo}`,
+              pkgInfo.extraCommits.map(c => ({
+                value: c.hash,
+                label: linkifyCommitMessage(`${c.hash.substring(0, 7)} - ${c.message}`, repoBaseUrl),
+                details: `${color.dim(c.date)} · ${color.cyan(c.author_name)}`,
+              })),
+              [],
+              t().scan.goBackToPackages,
+              true,
+            );
+            if (extraHashes === COMMIT_BACK) return "back";
+            if (p.isCancel(extraHashes)) {
+              p.cancel(t().scan.cancelled);
+              return null;
+            }
+            graduationExtraCommits = pkgInfo.extraCommits.filter(c =>
+              (extraHashes as string[]).includes(c.hash)
+            );
+          }
+          chosenCommits = [...pkgInfo.commits, ...graduationExtraCommits];
         } else {
           let selectedPathCommits: CommitInfo[] = [];
 
