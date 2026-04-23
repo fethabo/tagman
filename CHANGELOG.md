@@ -129,3 +129,7 @@
 * **feat:** guardado de borrador post-scan y cierre de issues #24 #25 #26 18759c7
 * ** fix:** restore auto-generated tag messages on back navigation; block tagless proceed 9b77a0c
 * **feat:** resolución de issues #17, #19, #20, #21, #22, #23, #25 a10e18d
+
+## [1.3.5](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.4...@fethabo/tagman@1.3.5) (2026-04-23)
+
+* **fix:** habilitado step2b si no hay commits del package. refix #26 8f44e51
