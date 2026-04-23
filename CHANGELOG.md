@@ -133,3 +133,7 @@
 ## [1.3.5](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.4...@fethabo/tagman@1.3.5) (2026-04-23)
 
 * **fix:** habilitado step2b si no hay commits del package. refix #26 8f44e51
+
+## [1.3.6](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.5...@fethabo/tagman@1.3.6) (2026-04-23)
+
+* **fix:** corregido step2 para candidatos de graduacion 4c0e14e
