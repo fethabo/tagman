@@ -168,7 +168,7 @@ export async function scanAndSelectPackages(
 
         // Step 2: Path-specific commit selection
         if (globalBump !== undefined || yes) {
-          chosenCommits = pkgInfo.commits;
+          chosenCommits = pkgInfo.isExtraOnly ? pkgInfo.extraCommits : pkgInfo.commits;
         } else if (pkgInfo.isGraduation) {
           chosenCommits = pkgInfo.commits;
         } else {
@@ -300,7 +300,7 @@ export async function scanAndSelectPackages(
                   label: linkifyCommitMessage(`${c.hash.substring(0, 7)} - ${c.message}`, repoBaseUrl),
                   details: `${color.dim(c.date)} · ${color.cyan(c.author_name)}`,
                 })),
-                [],
+                pkgInfo.isExtraOnly ? pkgInfo.extraCommits.map(c => c.hash) : [],
                 pkgInfo.isExtraOnly ? t().scan.goBackToPackages : t().scan.goBack,
                 true,
               );
