@@ -7,6 +7,7 @@ import { CommitInfo } from "../git/index.js";
 export interface ReleaseState {
   pkg: WorkspacePackage;
   commits: CommitInfo[];
+  changelogCommits?: CommitInfo[]; // full pre-release cycle commits for graduation CHANGELOG
   bump: "patch" | "minor" | "major" | "none" | "custom"
       | "premajor" | "preminor" | "prepatch" | "prerelease" | "graduate";
   prereleaseChannel?: string;  // "alpha", "beta", "rc", or custom

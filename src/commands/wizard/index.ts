@@ -9,8 +9,8 @@ import { promptTagMessages } from "./steps/tag-messages.js";
 import { executeRelease } from "./steps/execute.js";
 import { runGithubReleaseFlow } from "../github-release.js";
 import { hasDraft, loadDraft, saveDraft, clearDraft } from "../../core/draft.js";
-import { wizardSelect, SELECT_BACK } from "./wizard-select.js";
 import { showDraftResumePrompt } from "./draft-resume-prompt.js";
+import { showScanSummaryPrompt } from "./scan-summary-prompt.js";
 import { setLocale, t, type Locale } from "../../i18n/index.js";
 import { VERSION } from "../../version.js";
 
@@ -104,23 +104,9 @@ export async function runWizardFlow(
 
           // Post-scan summary with draft-save option (interactive mode only)
           if (!options.dryRun && !options.yes) {
-            const summaryLines = Array.from(state.entries())
-              .map(([name, d]) => `  ${name}: ${d.pkg.manifest.version} → ${d.newVersion}  (${d.commits.length} commit(s))`)
-              .join("\n");
-            p.note(summaryLines, t().draft.summaryTitle);
+            const summaryAction = await showScanSummaryPrompt(state);
 
-            const summaryAction = await wizardSelect(
-              t().draft.actionQuestion,
-              [
-                { value: "proceed", label: t().draft.proceed },
-                { value: "save",    label: t().draft.save },
-                { value: "back",    label: t().draft.goBack },
-              ],
-              "proceed",
-              undefined,
-            );
-
-            if (p.isCancel(summaryAction) || (summaryAction as unknown) === SELECT_BACK) {
+            if (p.isCancel(summaryAction)) {
               p.cancel(t().scan.cancelled);
               return;
             }

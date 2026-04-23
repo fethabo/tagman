@@ -171,6 +171,7 @@ export async function scanAndSelectPackages(
         if (globalBump !== undefined || yes) {
           chosenCommits = pkgInfo.isExtraOnly ? pkgInfo.extraCommits : pkgInfo.commits;
         } else if (pkgInfo.isGraduation) {
+          isGraduationMode = true;
           let graduationExtraCommits: CommitInfo[] = [];
           if (pkgInfo.extraCommits.length > 0) {
             const extraCountInfo = color.dim(`(${t().scan.selectExtraCommitsCount(pkgInfo.extraCommits.length, pkgInfo.lastTag)})`);
@@ -194,7 +195,7 @@ export async function scanAndSelectPackages(
               (extraHashes as string[]).includes(c.hash)
             );
           }
-          chosenCommits = [...pkgInfo.commits, ...graduationExtraCommits];
+          chosenCommits = graduationExtraCommits;
         } else {
           let selectedPathCommits: CommitInfo[] = [];
 
@@ -625,6 +626,9 @@ export async function scanAndSelectPackages(
     state.set(pkgName, {
       pkg: pkgInfo.pkg,
       commits: chosenCommits,
+      changelogCommits: pkgInfo.isGraduation
+        ? [...chosenCommits, ...pkgInfo.commits]
+        : undefined,
       bump: bump as ReleaseState["bump"],
       prereleaseChannel,
       githubPrerelease: isPrereleaseBump || undefined,

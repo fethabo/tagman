@@ -98,7 +98,7 @@ export async function executeRelease(
     for (const [pkgName, details] of state.entries()) {
       try {
         await updatePackageVersion(details.pkg.dir, details.newVersion);
-        await appendToChangelog(pkgName, details.pkg.dir, details.newVersion, details.pkg.manifest.version, details.commits);
+        await appendToChangelog(pkgName, details.pkg.dir, details.newVersion, details.pkg.manifest.version, details.changelogCommits ?? details.commits);
         releasedLog[pkgName] = details.newVersion;
 
         const dependents = getDependents(pkgName, allPackages);
