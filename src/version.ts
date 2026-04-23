@@ -1,3 +1,7 @@
-import { createRequire } from 'node:module';
-const _require = createRequire(import.meta.url);
-export const VERSION: string = (_require('../package.json') as { version: string }).version;
+import { readFile } from 'node:fs/promises';
+
+const pkgPath = new URL('../package.json', import.meta.url);
+const pkgContent = await readFile(pkgPath, 'utf-8');
+const { version } = JSON.parse(pkgContent);
+
+export const VERSION = version;
