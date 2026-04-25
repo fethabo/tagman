@@ -76,11 +76,12 @@ export function formatCommitList(commits: CommitInfo[], baseUrl: string): { item
       formattedMsg = `**${formattedMsg.substring(0, colonIdx + 1)}**${formattedMsg.substring(colonIdx + 1)}`;
     }
 
-    // @username format works automatically in GitHub — only show when we can extract a real username
+    // @username format works automatically in GitHub — prefer extracted noreply username,
+    // fall back to author_name when the email is not a GitHub noreply address
     let authorLink = "";
     if (c.author_name !== "tagman") {
       const username = extractGitHubUsername(c.author_email ?? "");
-      if (username) authorLink = ` @${username}`;
+      authorLink = username ? ` @${username}` : ` ${c.author_name}`;
     }
 
     return `* ${formattedMsg}${authorLink} ${hashLink}`;
