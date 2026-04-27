@@ -19,7 +19,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
       
       - run: pnpm install
@@ -47,6 +47,13 @@ jobs:
           echo "Workflow ref: $GITHUB_WORKFLOW_REF"
           echo "Event: $GITHUB_EVENT_NAME"
           echo "Ref: $GITHUB_REF"
+
+          npm_version="$(npm --version)"
+          echo "npm version: $npm_version"
+          if ! node -e "const [maj,min,pat]=process.argv[1].split('.').map(Number); process.exit(maj>11 || (maj===11 && (min>5 || (min===5 && pat>=1))) ? 0 : 1)" "$npm_version"; then
+            echo "::error::Trusted Publisher requires npm >= 11.5.1. Current version: $npm_version"
+            exit 1
+          fi
 
           if [[ "$pkg_name" == @*/* ]]; then
             pkg_scope="${pkg_name#@}"
