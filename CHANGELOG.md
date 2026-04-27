@@ -141,3 +141,9 @@
 ## [1.3.7](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.6...@fethabo/tagman@1.3.7) (2026-04-23)
 
 * **fix:** corregida inclusion de commits no seleccionados en tag de prerelease a7c0694
+
+## [1.3.8](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.7...@fethabo/tagman@1.3.8) (2026-04-27)
+
+* agregadas modificaciones de comentario para canal de pre-release. closes #31 fethabo d35fab6
+* **fix:** always save commit author name in tag messages @Copilot dead85d
+* **fix:** quitado createRequire de version fethabo 48100e4
