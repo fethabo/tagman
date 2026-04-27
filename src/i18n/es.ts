@@ -123,6 +123,11 @@ export const es: Messages = {
     tagSummaryTitle: "Resumen de tags",
     tagSummaryCreate: "crear tag",
     tagSummarySkip: "omitir tag",
+    graduationActionSelect: "¿Qué mensaje deseas usar para el tag de graduación?",
+    useGraduationAuto: "Usar el autogenerado con contexto de graduación",
+    includeChangelog: "Incluir el changelog completo del canal pre-release",
+    changelogEmpty: "No se encontraron entradas pre-release en el CHANGELOG. Elegí otra opción.",
+    changelogPreview: "Vista previa del changelog del canal",
   },
   draft: {
     found: (date) => `Se encontró un borrador guardado el ${date}.`,

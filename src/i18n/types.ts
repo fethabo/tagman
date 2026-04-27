@@ -118,6 +118,11 @@ export type Messages = {
     tagSummaryTitle: string;
     tagSummaryCreate: string;
     tagSummarySkip: string;
+    graduationActionSelect: string;
+    useGraduationAuto: string;
+    includeChangelog: string;
+    changelogEmpty: string;
+    changelogPreview: string;
   };
   draft: {
     found: (date: string) => string;

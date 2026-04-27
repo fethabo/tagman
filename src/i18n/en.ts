@@ -123,6 +123,11 @@ export const en: Messages = {
     tagSummaryTitle: "Tag summary",
     tagSummaryCreate: "create tag",
     tagSummarySkip: "skip tag",
+    graduationActionSelect: "Which message do you want to use for the graduation tag?",
+    useGraduationAuto: "Use the auto-generated graduation message (with from/to context)",
+    includeChangelog: "Include full pre-release channel CHANGELOG",
+    changelogEmpty: "No pre-release entries found in CHANGELOG. Please choose another option.",
+    changelogPreview: "Pre-release channel changelog preview",
   },
   draft: {
     found: (date) => `A draft was found from ${date}.`,
