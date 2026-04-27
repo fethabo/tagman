@@ -57,6 +57,24 @@ function extractGitHubUsername(email: string): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * Parses "Co-authored-by: name <email>" lines from a commit body and returns
+ * the GitHub username of the first human (non-bot) co-author found.
+ */
+function extractCoAuthorUsername(body: string): string | null {
+  if (!body) return null;
+  for (const line of body.split("\n")) {
+    const m = line.match(/^Co-authored-by:\s*[^<]*<([^>]+)>/i);
+    if (!m) continue;
+    const email = m[1];
+    // Skip bot emails (copilot, github-actions, etc.)
+    if (/\[bot\]|copilot|github-actions/i.test(email)) continue;
+    const username = extractGitHubUsername(email);
+    if (username) return username;
+  }
+  return null;
+}
+
 export function formatCommitList(commits: CommitInfo[], baseUrl: string): { items: string[], references: string[] } {
   const parsedCommits = commits.map(c => {
     const shortHash = c.hash.substring(0, 7);
@@ -77,11 +95,21 @@ export function formatCommitList(commits: CommitInfo[], baseUrl: string): { item
     }
 
     // @username format works automatically in GitHub — prefer extracted noreply username,
-    // fall back to author_name when the email is not a GitHub noreply address
+    // fall back to @author_name when the email is not a GitHub noreply address.
+    // For bot commits (e.g. Copilot), use the human co-author from the commit body.
     let authorLink = "";
     if (c.author_name !== "tagman") {
-      const username = extractGitHubUsername(c.author_email ?? "");
-      authorLink = username ? ` @${username}` : ` ${c.author_name}`;
+      const isBotAuthor = c.author_name.endsWith("[bot]");
+
+      let username: string | null = null;
+      if (isBotAuthor) {
+        username = extractCoAuthorUsername(c.body ?? "");
+      }
+      if (!username) {
+        username = extractGitHubUsername(c.author_email ?? "");
+      }
+
+      authorLink = username ? ` @${username}` : ` @${c.author_name}`;
     }
 
     return `* ${formattedMsg}${authorLink} ${hashLink}`;
