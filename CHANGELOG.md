@@ -147,3 +147,9 @@
 * agregadas modificaciones de comentario para canal de pre-release. closes #31 fethabo d35fab6
 * **fix:** always save commit author name in tag messages @Copilot dead85d
 * **fix:** quitado createRequire de version fethabo 48100e4
+
+## [1.3.9](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.8...@fethabo/tagman@1.3.9) (2026-04-27)
+
+* Merge pull request #35 from fethabo/copilot/fix-graduation-comment-commit-issue @fethabo d5bddf1
+* **fix:** graduation tag message no longer includes full pre-release cycle commits by default @fethabo 24b6843
+* **fix:** restore @username linking for commit authors and add Copilot co-author support @fethabo 218df0f
