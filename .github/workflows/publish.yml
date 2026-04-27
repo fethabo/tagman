@@ -13,17 +13,71 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           registry-url: 'https://registry.npmjs.org'
       
       - run: pnpm install
       - run: pnpm run build
+      - run: npm i -g npm@latest
+      - run: npm --version
+
+      - name: Validate Trusted Publisher context
+        shell: bash
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GITHUB_WORKFLOW_REF: ${{ github.workflow_ref }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          pkg_name="$(node -p "require('./package.json').name")"
+          repo_owner="${GITHUB_REPOSITORY_OWNER,,}"
+
+          echo "Package name: $pkg_name"
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Workflow ref: $GITHUB_WORKFLOW_REF"
+          echo "Event: $GITHUB_EVENT_NAME"
+          echo "Ref: $GITHUB_REF"
+
+          if [[ "$pkg_name" == @*/* ]]; then
+            pkg_scope="${pkg_name#@}"
+            pkg_scope="${pkg_scope%%/*}"
+            pkg_scope="${pkg_scope,,}"
+            if [[ "$pkg_scope" != "$repo_owner" ]]; then
+              echo "::error::Package scope '$pkg_scope' does not match repository owner '$repo_owner'. Trusted publishing may fail with E404/E403."
+              exit 1
+            fi
+          fi
+
+          if [[ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" || -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]]; then
+            echo "::error::OIDC request environment is not available. Ensure job permissions include 'id-token: write'."
+            exit 1
+          fi
+
+          oidc_json="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org")"
+          oidc_token="$(node -e "const x=JSON.parse(process.argv[1]); if(!x.value){process.exit(1)}; process.stdout.write(x.value)" "$oidc_json")"
+
+          OIDC_TOKEN="$oidc_token" node -e '
+            const t = process.env.OIDC_TOKEN;
+            const p = JSON.parse(Buffer.from(t.split(".")[1], "base64url").toString("utf8"));
+            const aud = Array.isArray(p.aud) ? p.aud.join(",") : String(p.aud || "");
+            console.log(`OIDC subject: ${p.sub || "<missing>"}`);
+            console.log(`OIDC audience: ${aud || "<missing>"}`);
+            console.log(`OIDC repository: ${p.repository || "<missing>"}`);
+            console.log(`OIDC workflow_ref: ${p.job_workflow_ref || "<missing>"}`);
+          '
+
+          echo "Trusted Publisher preflight checks passed."
       
-      # Solo publica si el build es exitoso
-      - run: pnpm publish --provenance --no-git-checks
+      # Trusted Publisher (OIDC): no usa NPM_TOKEN
+      - run: npm publish --provenance --access public
