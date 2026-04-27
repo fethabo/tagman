@@ -11,9 +11,10 @@ import { t } from "../../../i18n/index.js";
 
 async function buildGraduationMessage(pkgName: string, details: ReleaseState): Promise<string> {
   const baseUrl = await getRepositoryBaseUrl();
-  const commits = details.changelogCommits ?? details.commits;
+  const commits = details.commits;
   const { items } = formatCommitList(commits, baseUrl);
-  return `Graduation: ${pkgName}@${details.newVersion} (from ${details.pkg.manifest.version})\n\n${items.join("\n")}`;
+  const body = items.length > 0 ? `\n\n${items.join("\n")}` : "";
+  return `Graduation: ${pkgName}@${details.newVersion} (from ${details.pkg.manifest.version})${body}`;
 }
 
 async function extractPreReleaseChangelog(
