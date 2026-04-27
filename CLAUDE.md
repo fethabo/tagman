@@ -307,3 +307,32 @@ Entry points: `src/commands/wizard/index.ts` (flags), `src/commands/wizard/steps
 ### `tagman github-release`
 
 Creates GitHub Releases from existing annotated tags without touching versions or files. Requires `GITHUB_TOKEN` (or configured token). Token resolution order: `GITHUB_TOKEN` env → `~/.npmrc` → `./.npmrc` → `config.github.token`.
+
+---
+
+## Subagentes
+
+Este repositorio define subagentes en `.claude/agents/` para tareas especializadas.
+
+### Regla de delegación (obligatoria)
+
+Esta regla aplica tanto en plan mode como fuera de plan mode.
+Si el usuario menciona un issue de GitHub, se debe invocar primero el subagente correspondiente para obtener el contexto y el prompt de trabajo, incluso cuando el pedido inicial sea "solo armá el plan".
+
+Disparadores de esta regla:
+- Mensajes como "resolvé el issue #123", "implementá el issue #123", "trabajemos el issue #123".
+- URLs de issue, por ejemplo `https://github.com/<owner>/<repo>/issues/<n>`.
+- Referencias indirectas a "el issue de esta branch" o "el issue de este feature".
+
+Flujo esperado:
+1. Invocar `issue-prompt-optimizer`.
+2. Leer y sintetizar issue + comentarios.
+3. Hacer preguntas mínimas si falta contexto crítico.
+4. Si el usuario pidió plan mode, devolver primero el plan basado en ese contexto.
+5. Recién después, ejecutar la implementación cuando corresponda.
+
+### issue-prompt-optimizer
+
+- Archivo: `.claude/agents/issue-prompt-optimizer.md`
+- Propósito: convertir un issue de GitHub en un prompt sintetizado y accionable para implementación.
+- Uso recomendado: cuando el usuario comparte un número/URL de issue y quiere comenzar trabajo de desarrollo con contexto claro.
