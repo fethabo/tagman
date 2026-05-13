@@ -168,6 +168,9 @@ export type Messages = {
     npmDone: string;
     npmPublished: (pkg: string, version: string) => string;
     npmFailed: (pkg: string, msg: string) => string;
+    githubTokenInsecure: (path: string) => string;
+    githubTokenProjectExposure: string;
+    githubTokenConfigExposure: string;
     done: string;
     dryRunHeader: string;
     dryRunDone: string;
