@@ -9,7 +9,7 @@ export interface ReleaseState {
   commits: CommitInfo[];
   changelogCommits?: CommitInfo[]; // full pre-release cycle commits for graduation CHANGELOG
   bump: "patch" | "minor" | "major" | "none" | "custom"
-      | "premajor" | "preminor" | "prepatch" | "prerelease" | "graduate";
+      | "premajor" | "preminor" | "prepatch" | "prerelease" | "graduate" | "hotfix";
   prereleaseChannel?: string;  // "alpha", "beta", "rc", or custom
   githubPrerelease?: boolean;  // overrides config.github.prerelease when set
   liftCommits?: string[];      // global commit hashes (oldest-first) to cherry-pick after release commit

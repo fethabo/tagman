@@ -146,6 +146,7 @@ export async function scanAndSelectPackages(
 
     const currentVersion = pkgInfo.pkg.manifest.version;
     const isCurrentPrerelease = semver.prerelease(currentVersion) !== null;
+    const isCurrentHotfix = isCurrentPrerelease && String(semver.prerelease(currentVersion)![0]) === "hotfix";
 
     // Variables set by the inner loop; declared here so state.set() can read them after the outer loop
     let goBackToCommits = false;
@@ -365,12 +366,21 @@ export async function scanAndSelectPackages(
           const mainBumpOptions: { value: string; label: string; hint?: string }[] = [];
 
           if (isCurrentPrerelease) {
-            const nextPre = semver.inc(currentVersion, "prerelease", existingChannel!)!;
-            const stableVer = `${semver.major(currentVersion)}.${semver.minor(currentVersion)}.${semver.patch(currentVersion)}`;
-            mainBumpOptions.push(
-              { value: "prerelease", label: t().scan.preReleaseIncrement(nextPre), hint: !isGraduationMode ? "suggested" : undefined },
-              { value: "graduate",   label: t().scan.preReleaseGraduate(stableVer), hint: isGraduationMode ? "suggested" : undefined },
-            );
+            if (isCurrentHotfix) {
+              const nextHotfix = semver.inc(currentVersion, "prerelease", "hotfix")!;
+              const stableVer = `${semver.major(currentVersion)}.${semver.minor(currentVersion)}.${semver.patch(currentVersion)}`;
+              mainBumpOptions.push(
+                { value: "hotfix", label: t().scan.hotfixIncrement(nextHotfix), hint: !isGraduationMode ? "suggested" : undefined },
+                { value: "graduate",   label: t().scan.preReleaseGraduate(stableVer), hint: isGraduationMode ? "suggested" : undefined },
+              );
+            } else {
+              const nextPre = semver.inc(currentVersion, "prerelease", existingChannel!)!;
+              const stableVer = `${semver.major(currentVersion)}.${semver.minor(currentVersion)}.${semver.patch(currentVersion)}`;
+              mainBumpOptions.push(
+                { value: "prerelease", label: t().scan.preReleaseIncrement(nextPre), hint: !isGraduationMode ? "suggested" : undefined },
+                { value: "graduate",   label: t().scan.preReleaseGraduate(stableVer), hint: isGraduationMode ? "suggested" : undefined },
+              );
+            }
           }
 
           mainBumpOptions.push(
@@ -378,6 +388,7 @@ export async function scanAndSelectPackages(
             { value: "minor",         label: `Minor (${semver.inc(currentVersion, "minor")})`,   hint: !isCurrentPrerelease && suggested === "minor" ? "suggested" : undefined },
             { value: "major",         label: `Major (${semver.inc(currentVersion, "major")})`,   hint: !isCurrentPrerelease && suggested === "major" ? "suggested" : undefined },
             { value: "prerelease-new", label: t().scan.preRelease, hint: t().scan.preReleaseHint },
+            { value: "hotfix-new",    label: t().scan.hotfix, hint: t().scan.hotfixHint },
             { value: "none",          label: `No incrementar (solo Git Tag: ${currentVersion})` },
             { value: "custom",        label: `Definir una versión específica...` },
           );
@@ -385,7 +396,7 @@ export async function scanAndSelectPackages(
           const result = await wizardSelect(
             `${t().scan.selectBump(pkgName, currentVersion)} ${color.cyan(pkgName)} (Current: ${currentVersion})`,
             mainBumpOptions,
-            isGraduationMode ? "graduate" : (isCurrentPrerelease ? "prerelease" : suggested),
+            isGraduationMode ? "graduate" : (isCurrentPrerelease ? (isCurrentHotfix ? "hotfix" : "prerelease") : suggested),
             t().scan.goBack,
           );
 
@@ -519,6 +530,10 @@ export async function scanAndSelectPackages(
           return null;
         }
         newVersion = semver.clean(customV as string)!;
+      } else if (bump === "hotfix") {
+        newVersion = semver.inc(currentVersion, "prerelease", "hotfix")!;
+      } else if (bump === "hotfix-new") {
+        newVersion = semver.inc(currentVersion, "prepatch", "hotfix")!;
       } else if (bump === "prerelease") {
         const existingCh = semver.prerelease(currentVersion)?.[0] as string | undefined;
         newVersion = semver.inc(currentVersion, "prerelease", (prereleaseChannel ?? existingCh)!)!;
@@ -629,7 +644,7 @@ export async function scanAndSelectPackages(
       changelogCommits: pkgInfo.isGraduation
         ? [...chosenCommits, ...pkgInfo.commits]
         : undefined,
-      bump: bump as ReleaseState["bump"],
+      bump: (bump === "hotfix-new" ? "hotfix" : bump) as ReleaseState["bump"],
       prereleaseChannel,
       githubPrerelease: isPrereleaseBump || undefined,
       liftCommits,
