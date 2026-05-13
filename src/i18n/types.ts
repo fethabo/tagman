@@ -62,6 +62,9 @@ export type Messages = {
     cancelled: string;
     preRelease: string;
     preReleaseHint: string;
+    hotfix: string;
+    hotfixHint: string;
+    hotfixIncrement: (version: string) => string;
     selectPreReleaseType: (pkg: string) => string;
     preReleaseIncrement: (version: string) => string;
     preReleaseGraduate: (version: string) => string;
