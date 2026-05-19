@@ -13,6 +13,7 @@ import type { ReleaseState } from "../../../core/checkpoint.js";
 import type { TagmanConfig } from "../../../config.js";
 import { commitMultiSelect, linkifyCommitMessage, COMMIT_BACK } from "../commit-multiselect.js";
 import { wizardSelect, SELECT_BACK } from "../wizard-select.js";
+import { resolveGithubToken } from "../../../core/token.js";
 import { t } from "../../../i18n/index.js";
 
 /**
@@ -58,6 +59,11 @@ export async function scanAndSelectPackages(
   const currentBranch = await getCurrentBranch();
   const ghInfo = await getGitHubRemoteInfo();
   const repoBaseUrl = ghInfo ? `https://github.com/${ghInfo.owner}/${ghInfo.repo}` : null;
+  // Resolve token once for GitHub API lookups used throughout this scan.
+  const ghToken = ghInfo ? await resolveGithubToken(config.github?.token) : null;
+  const ghContext = ghInfo
+    ? { owner: ghInfo.owner, repo: ghInfo.repo, token: ghToken }
+    : undefined;
 
   const spinner = p.spinner();
   spinner.start(t().scan.scanning);
@@ -645,7 +651,7 @@ export async function scanAndSelectPackages(
       if (!b.date) return -1;
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
-    const { items } = formatCommitList(sortedForAnnotation, baseUrl);
+    const { items } = await formatCommitList(sortedForAnnotation, baseUrl, ghContext);
 
     const tagHeader = config.tagName === "version-only"
       ? newVersion

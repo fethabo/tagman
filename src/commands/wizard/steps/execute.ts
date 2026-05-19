@@ -53,6 +53,13 @@ export async function executeRelease(
     return;
   }
 
+  // Resolve GitHub context once for use in changelog generation and GitHub Releases.
+  const ghInfo = await getGitHubRemoteInfo();
+  const ghToken = ghInfo ? await resolveGithubToken(config.github?.token) : null;
+  const ghContext = ghInfo
+    ? { owner: ghInfo.owner, repo: ghInfo.repo, token: ghToken }
+    : undefined;
+
   // Collect lift commits from all packages (only one package can have them per plan)
   const seen = new Set<string>();
   const dedupedLift = Array.from(state.values())
@@ -98,7 +105,7 @@ export async function executeRelease(
     for (const [pkgName, details] of state.entries()) {
       try {
         await updatePackageVersion(details.pkg.dir, details.newVersion);
-        await appendToChangelog(pkgName, details.pkg.dir, details.newVersion, details.pkg.manifest.version, details.changelogCommits ?? details.commits);
+        await appendToChangelog(pkgName, details.pkg.dir, details.newVersion, details.pkg.manifest.version, details.changelogCommits ?? details.commits, ghContext);
         releasedLog[pkgName] = details.newVersion;
 
         const dependents = getDependents(pkgName, allPackages);
@@ -209,42 +216,38 @@ export async function executeRelease(
 
   // GitHub Releases
   if (config.github?.createRelease) {
-    const token = await resolveGithubToken(config.github.token);
-    if (!token) {
+    if (!ghInfo) {
+      p.log.warn(t().execute.githubNoRemote);
+    } else if (!ghToken) {
       p.log.warn(t().execute.githubNoToken);
     } else {
-      const ghInfo = await getGitHubRemoteInfo();
-      if (!ghInfo) {
-        p.log.warn(t().execute.githubNoRemote);
-      } else {
-        const ghSpinner = p.spinner();
-        ghSpinner.start(t().execute.githubCreating);
-        const urls: string[] = [];
-        for (const [pkgName, details] of state.entries()) {
-          if (!details.tagMessage) continue; // skip packages where user declined tag creation (#25)
-          try {
-            const tagName = buildTagName(pkgName, details.newVersion, config);
-            const isPrerelease = details.githubPrerelease ?? config.github.prerelease ?? false;
-            const url = await createGithubRelease({
-              token,
-              owner: ghInfo.owner,
-              repo: ghInfo.repo,
-              tagName,
-              body: details.tagMessage ?? "",
-              prerelease: isPrerelease,
-            });
-            urls.push(url);
-          } catch (e: any) {
-            p.log.warn(t().execute.githubFailed(pkgName, e.message));
-          }
+      const ghSpinner = p.spinner();
+      ghSpinner.start(t().execute.githubCreating);
+      const urls: string[] = [];
+      for (const [pkgName, details] of state.entries()) {
+        if (!details.tagMessage) continue; // skip packages where user declined tag creation (#25)
+        try {
+          const tagName = buildTagName(pkgName, details.newVersion, config);
+          const isPrerelease = details.githubPrerelease ?? config.github.prerelease ?? false;
+          const url = await createGithubRelease({
+            token: ghToken,
+            owner: ghInfo.owner,
+            repo: ghInfo.repo,
+            tagName,
+            body: details.tagMessage ?? "",
+            prerelease: isPrerelease,
+          });
+          urls.push(url);
+        } catch (e: any) {
+          p.log.warn(t().execute.githubFailed(pkgName, e.message));
         }
-        ghSpinner.stop(t().execute.githubDone(urls.length));
-        for (const url of urls) p.log.info(`  ${url}`);
-        // Warn if releases were expected but none created (#17)
-        const packagesWithTags = Array.from(state.values()).filter(d => d.tagMessage).length;
-        if (packagesWithTags > 0 && urls.length === 0) {
-          p.log.warn(t().execute.githubSkippedPrerelease);
-        }
+      }
+      ghSpinner.stop(t().execute.githubDone(urls.length));
+      for (const url of urls) p.log.info(`  ${url}`);
+      // Warn if releases were expected but none created (#17)
+      const packagesWithTags = Array.from(state.values()).filter(d => d.tagMessage).length;
+      if (packagesWithTags > 0 && urls.length === 0) {
+        p.log.warn(t().execute.githubSkippedPrerelease);
       }
     }
   }

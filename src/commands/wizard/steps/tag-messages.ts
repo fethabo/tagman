@@ -7,12 +7,18 @@ import type { ReleaseState } from "../../../core/checkpoint.js";
 import { formatCommitList, getRepositoryBaseUrl } from "../../../core/updater.js";
 import { fileExists } from "../../../utils/index.js";
 import { wizardSelect, SELECT_BACK } from "../wizard-select.js";
+import { getGitHubRemoteInfo } from "../../../git/index.js";
+import { resolveGithubToken } from "../../../core/token.js";
+import type { TagmanConfig } from "../../../config.js";
 import { t } from "../../../i18n/index.js";
 
-async function buildGraduationMessage(pkgName: string, details: ReleaseState): Promise<string> {
+async function buildGraduationMessage(pkgName: string, details: ReleaseState, config?: TagmanConfig): Promise<string> {
   const baseUrl = await getRepositoryBaseUrl();
   const commits = details.commits;
-  const { items } = formatCommitList(commits, baseUrl);
+  const ghInfo = await getGitHubRemoteInfo();
+  const ghToken = ghInfo ? await resolveGithubToken(config?.github?.token) : null;
+  const ghContext = ghInfo ? { owner: ghInfo.owner, repo: ghInfo.repo, token: ghToken } : undefined;
+  const { items } = await formatCommitList(commits, baseUrl, ghContext);
   const body = items.length > 0 ? `\n\n${items.join("\n")}` : "";
   return `Graduation: ${pkgName}@${details.newVersion} (from ${details.pkg.manifest.version})${body}`;
 }
@@ -42,7 +48,8 @@ async function extractPreReleaseChangelog(
 }
 
 export async function promptTagMessages(
-  state: Map<string, ReleaseState>
+  state: Map<string, ReleaseState>,
+  config?: TagmanConfig,
 ): Promise<boolean | "back"> {
   // Capture originals before any mutation so back-navigation can restore them
   const originalTagMessages = new Map<string, string>(
@@ -93,7 +100,7 @@ export async function promptTagMessages(
         const isGraduation = details.bump === "graduate";
 
         if (isGraduation) {
-          const graduationAutoMsg = await buildGraduationMessage(pkgName, details);
+          const graduationAutoMsg = await buildGraduationMessage(pkgName, details, config);
           p.note(graduationAutoMsg, `${t().tagMessages.autoGenLabel} ${pkgName}`);
 
           let redoAction = false;

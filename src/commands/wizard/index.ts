@@ -133,7 +133,7 @@ export async function runWizardFlow(
             for (const [name, msg] of origTagMessages) {
               state!.get(name)!.tagMessage = msg;
             }
-            const tagResult = await promptTagMessages(state!);
+            const tagResult = await promptTagMessages(state!, cfg);
             if (tagResult === false) return;
             if (tagResult === "back") { backToScan = true; break; }
 
