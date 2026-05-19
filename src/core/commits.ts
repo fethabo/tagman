@@ -24,13 +24,15 @@ export function suggestBump(commits: string[]): SemverBump {
 
   for (const commitMsg of commits) {
     const parsed = parseCommitMessage(commitMsg);
-    
+    const msgUpper = commitMsg.toUpperCase();
+
     // Breaking changes
-    if (parsed.notes.some(note => note.title === "BREAKING CHANGE") || commitMsg.includes("!:") || commitMsg.includes("BREAKING CHANGE")) {
+    if (parsed.notes.some(note => note.title.toUpperCase() === "BREAKING CHANGE") || commitMsg.includes("!:") || msgUpper.includes("BREAKING CHANGE")) {
       return "major"; // Major takes precedence, we can return early
     }
 
-    if (parsed.type === "feat") {
+    // parsed.type is null when the commit doesn't follow conventional format; treat as non-feat
+    if (parsed.type?.toLowerCase() === "feat") {
       bump = "minor";
     }
   }
