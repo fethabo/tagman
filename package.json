@@ -59,6 +59,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/index.ts",
-    "start": "node bin/tagman.js"
+    "start": "node bin/tagman.js",
+    "test": "tsx --test src/**/*.test.ts"
   }
 }
