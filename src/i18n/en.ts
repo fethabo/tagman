@@ -77,6 +77,8 @@ export const en: Messages = {
     channelCustom: "Custom channel name",
     channelCustomInput: "Enter the channel name (e.g. alpha, beta, rc):",
     channelBranchHint: "current branch",
+    channelSanitized: (original, sanitized) =>
+      `Channel name "${original}" contains invalid semver characters and was sanitized to "${sanitized}".`,
     trailingCommitsWarning: (count) => `Warning: ${count} commit(s) newer than your selection will be included in the tag's code but not in the changelog, and won't appear in the next scan.`,
     trailingCommitsQuestion: "How do you want to handle these commits?",
     trailingReorder: "Reorder — tag at the selected code state (safe, local-only)",

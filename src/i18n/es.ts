@@ -77,6 +77,8 @@ export const es: Messages = {
     channelCustom: "Nombre de canal personalizado",
     channelCustomInput: "Ingresá el nombre del canal (ej: alpha, beta, rc):",
     channelBranchHint: "rama actual",
+    channelSanitized: (original, sanitized) =>
+      `El nombre de canal "${original}" contiene caracteres inválidos para semver y fue ajustado a "${sanitized}".`,
     trailingCommitsWarning: (count) => `Atención: ${count} commit(s) más recientes que tu selección se incluirán en el código del tag pero no en el changelog, y no estarán disponibles en el próximo escaneo.`,
     trailingCommitsQuestion: "¿Cómo querés manejar estos commits?",
     trailingReorder: "Reordenar — tag en el estado del código seleccionado (seguro, solo local)",
