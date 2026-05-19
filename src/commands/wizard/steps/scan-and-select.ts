@@ -15,6 +15,21 @@ import { commitMultiSelect, linkifyCommitMessage, COMMIT_BACK } from "../commit-
 import { wizardSelect, SELECT_BACK } from "../wizard-select.js";
 import { t } from "../../../i18n/index.js";
 
+/**
+ * Sanitizes a pre-release channel name so it only contains characters valid in
+ * a semver pre-release identifier: `[A-Za-z0-9-]`.
+ * Any other character (e.g. `/` from branch names) is replaced with `-`.
+ * Leading/trailing hyphens are removed and consecutive hyphens are collapsed.
+ * Falls back to `"channel"` if the result would otherwise be empty.
+ */
+function sanitizeChannelName(name: string): string {
+  const sanitized = name
+    .replace(/[^A-Za-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return sanitized.length > 0 ? sanitized : "channel";
+}
+
 export type PackageInfo = {
   pkg: WorkspacePackage;
   commits: CommitInfo[];
@@ -476,7 +491,11 @@ export async function scanAndSelectPackages(
                   channelName = channelResult as string;
                 }
 
-                prereleaseChannel = channelName;
+                const sanitizedChannel = sanitizeChannelName(channelName);
+                if (sanitizedChannel !== channelName) {
+                  p.log.warn(t().scan.channelSanitized(channelName, sanitizedChannel));
+                }
+                prereleaseChannel = sanitizedChannel;
                 bump = preType;
                 preBumpSettled = true;
                 break;
