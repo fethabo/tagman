@@ -1,8 +1,12 @@
 import path from "node:path";
 import semver from "semver";
+import { Octokit } from "@octokit/rest";
 import { PackageJson, packageJsonSchema } from "../schemas/index.js";
 import { readJson, writeJson, appendToFile } from "../utils/index.js";
 import { SemverBump } from "./commits.js";
+
+/** Cache of (owner/repo#hash) → GitHub login to avoid redundant API calls. */
+const githubLoginCache = new Map<string, string | null>();
 
 export async function updatePackageVersion(pkgDir: string, newVersion: string): Promise<string> {
   const pkgJsonPath = path.join(pkgDir, "package.json");
@@ -58,6 +62,43 @@ function extractGitHubUsername(email: string): string | null {
 }
 
 /**
+ * Returns true when `name` is a syntactically valid GitHub username.
+ * GitHub usernames may only contain alphanumeric characters and hyphens,
+ * cannot start or end with a hyphen, and are at most 39 characters long.
+ */
+function isValidGitHubUsername(name: string): boolean {
+  return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(name);
+}
+
+/**
+ * Resolves the real GitHub login for a commit via the GitHub Commits API.
+ * Results are cached per (owner/repo + hash) to avoid redundant network calls.
+ * Returns null when the token is unavailable, the commit is not linked to a
+ * GitHub account, or any network/API error occurs.
+ */
+async function fetchGitHubLoginForCommit(
+  hash: string,
+  owner: string,
+  repo: string,
+  token: string,
+): Promise<string | null> {
+  const cacheKey = `${owner}/${repo}#${hash}`;
+  if (githubLoginCache.has(cacheKey)) {
+    return githubLoginCache.get(cacheKey) ?? null;
+  }
+  try {
+    const octokit = new Octokit({ auth: token });
+    const { data } = await octokit.repos.getCommit({ owner, repo, ref: hash });
+    const login = data.author?.login ?? null;
+    githubLoginCache.set(cacheKey, login);
+    return login;
+  } catch {
+    githubLoginCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+/**
  * Parses "Co-authored-by: name <email>" lines from a commit body and returns
  * the GitHub username of the first human (non-bot) co-author found.
  */
@@ -75,8 +116,12 @@ function extractCoAuthorUsername(body: string): string | null {
   return null;
 }
 
-export function formatCommitList(commits: CommitInfo[], baseUrl: string): { items: string[], references: string[] } {
-  const parsedCommits = commits.map(c => {
+export async function formatCommitList(
+  commits: CommitInfo[],
+  baseUrl: string,
+  ghContext?: { owner: string; repo: string; token: string | null },
+): Promise<{ items: string[], references: string[] }> {
+  const parsedCommits = await Promise.all(commits.map(async c => {
     const shortHash = c.hash.substring(0, 7);
     
     // Use short hash without markdown link for GitHub autolinking
@@ -94,9 +139,11 @@ export function formatCommitList(commits: CommitInfo[], baseUrl: string): { item
       formattedMsg = `**${formattedMsg.substring(0, colonIdx + 1)}**${formattedMsg.substring(colonIdx + 1)}`;
     }
 
-    // @username format works automatically in GitHub — prefer extracted noreply username,
-    // fall back to @author_name when the email is not a GitHub noreply address.
-    // For bot commits (e.g. Copilot), use the human co-author from the commit body.
+    // Resolution priority:
+    // 1. GitHub noreply email extraction (fastest, no network).
+    // 2. GitHub Commits API (real login, requires token and a real commit hash).
+    // 3. author_name only when it matches the GitHub username format; otherwise
+    //    use it as plain text to avoid accidentally @-mentioning an unrelated user.
     let authorLink = "";
     if (c.author_name !== "tagman") {
       const isBotAuthor = c.author_name.endsWith("[bot]");
@@ -109,11 +156,27 @@ export function formatCommitList(commits: CommitInfo[], baseUrl: string): { item
         username = extractGitHubUsername(c.author_email ?? "");
       }
 
-      authorLink = username ? ` @${username}` : ` @${c.author_name}`;
+      // When noreply extraction fails, try the GitHub API for the real login.
+      if (!username && ghContext?.token && c.hash && c.hash !== "cascade") {
+        username = await fetchGitHubLoginForCommit(
+          c.hash, ghContext.owner, ghContext.repo, ghContext.token,
+        );
+      }
+
+      if (username) {
+        authorLink = ` @${username}`;
+      } else if (isValidGitHubUsername(c.author_name)) {
+        // The display name happens to be a valid GitHub username handle.
+        authorLink = ` @${c.author_name}`;
+      } else {
+        // Display name contains spaces or invalid characters (e.g. "Agus muni").
+        // Using @mention would link to the wrong user, so show it as plain text.
+        authorLink = ` ${c.author_name}`;
+      }
     }
 
     return `* ${formattedMsg}${authorLink} ${hashLink}`;
-  });
+  }));
 
   return { items: parsedCommits, references: [] };
 }
@@ -123,13 +186,14 @@ export async function appendToChangelog(
   pkgDir: string, 
   newVersion: string, 
   prevVersion: string, 
-  commits: CommitInfo[]
+  commits: CommitInfo[],
+  ghContext?: { owner: string; repo: string; token: string | null },
 ): Promise<void> {
   const date = new Date().toISOString().split("T")[0];
   const changelogPath = path.join(pkgDir, "CHANGELOG.md");
   
   const baseUrl = await getRepositoryBaseUrl();
-  const { items, references } = formatCommitList(commits, baseUrl);
+  const { items, references } = await formatCommitList(commits, baseUrl, ghContext);
   
   const compareLinkUrl = baseUrl 
     ? `${baseUrl}/compare/${pkgName}@${prevVersion}...${pkgName}@${newVersion}`
