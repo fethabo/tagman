@@ -9,7 +9,7 @@ import {
 } from "../../../core/updater.js";
 import { createReleaseCommit, createAnnotatedTag, deleteLocalTag, resetLastCommit, pushRelease, getGitHubRemoteInfo, git } from "../../../git/index.js";
 import { resolveGithubToken } from "../../../core/token.js";
-import { createGithubRelease } from "../../../integrations/github.js";
+import { createGithubRelease, interactiveGithubLogin } from "../../../integrations/github.js";
 import { publishPackage } from "../../../integrations/npm.js";
 import { runAfterRelease, type ReleaseResult } from "../../../plugins/index.js";
 import { saveCheckpoint, clearCheckpoint, type ReleaseState } from "../../../core/checkpoint.js";
@@ -55,8 +55,8 @@ export async function executeRelease(
 
   // Resolve GitHub context once for use in changelog generation and GitHub Releases.
   const ghInfo = await getGitHubRemoteInfo();
-  const ghToken = ghInfo ? await resolveGithubToken(config.github?.token) : null;
-  const ghContext = ghInfo
+  let ghToken = ghInfo ? await resolveGithubToken(config.github?.token) : null;
+  let ghContext = ghInfo
     ? { owner: ghInfo.owner, repo: ghInfo.repo, token: ghToken }
     : undefined;
 
@@ -220,40 +220,56 @@ export async function executeRelease(
   if (config.github?.createRelease) {
     if (!ghInfo) {
       p.log.warn(t().execute.githubNoRemote);
-    } else if (!ghToken) {
-      p.log.warn(t().execute.githubNoToken);
     } else {
-      const ghSpinner = p.spinner();
-      ghSpinner.start(t().execute.githubCreating);
-      const urls: string[] = [];
-      let skippedPrerelease = 0;
-      for (const [pkgName, details] of state.entries()) {
-        if (!details.tagMessage) continue; // skip packages where user declined tag creation (#25)
-        // Skip GitHub Release for pre-release versions when config.github.prerelease is false
-        if (details.githubPrerelease && !config.github?.prerelease) {
-          skippedPrerelease++;
-          continue;
-        }
-        try {
-          const tagName = buildTagName(pkgName, details.newVersion, config);
-          const isPrerelease = details.githubPrerelease ?? config.github.prerelease ?? false;
-          const url = await createGithubRelease({
-            token: ghToken,
-            owner: ghInfo.owner,
-            repo: ghInfo.repo,
-            tagName,
-            body: details.tagMessage ?? "",
-            prerelease: isPrerelease,
+      if (!ghToken) {
+        p.log.warn(t().execute.githubNoToken);
+        if (!yes) {
+          const login = await p.confirm({
+            message: t().execute.githubDeviceLoginPrompt,
+            initialValue: true,
           });
-          urls.push(url);
-        } catch (e: any) {
-          p.log.warn(t().execute.githubFailed(pkgName, e.message));
+          if (!p.isCancel(login) && login) {
+            ghToken = await interactiveGithubLogin();
+            if (ghToken) {
+              ghContext = { owner: ghInfo.owner, repo: ghInfo.repo, token: ghToken };
+            }
+          }
         }
       }
-      ghSpinner.stop(t().execute.githubDone(urls.length));
-      for (const url of urls) p.log.info(`  ${url}`);
-      if (skippedPrerelease > 0) {
-        p.log.warn(t().execute.githubSkippedPrerelease);
+
+      if (ghToken) {
+        const ghSpinner = p.spinner();
+        ghSpinner.start(t().execute.githubCreating);
+        const urls: string[] = [];
+        let skippedPrerelease = 0;
+        for (const [pkgName, details] of state.entries()) {
+          if (!details.tagMessage) continue; // skip packages where user declined tag creation (#25)
+          // Skip GitHub Release for pre-release versions when config.github.prerelease is false
+          if (details.githubPrerelease && !config.github?.prerelease) {
+            skippedPrerelease++;
+            continue;
+          }
+          try {
+            const tagName = buildTagName(pkgName, details.newVersion, config);
+            const isPrerelease = details.githubPrerelease ?? config.github.prerelease ?? false;
+            const url = await createGithubRelease({
+              token: ghToken,
+              owner: ghInfo.owner,
+              repo: ghInfo.repo,
+              tagName,
+              body: details.tagMessage ?? "",
+              prerelease: isPrerelease,
+            });
+            urls.push(url);
+          } catch (e: any) {
+            p.log.warn(t().execute.githubFailed(pkgName, e.message));
+          }
+        }
+        ghSpinner.stop(t().execute.githubDone(urls.length));
+        for (const url of urls) p.log.info(`  ${url}`);
+        if (skippedPrerelease > 0) {
+          p.log.warn(t().execute.githubSkippedPrerelease);
+        }
       }
     }
   }

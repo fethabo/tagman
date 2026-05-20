@@ -3,17 +3,27 @@ import * as p from "@clack/prompts";
 import color from "picocolors";
 import { loadConfig } from "../config.js";
 import { listAllTags, getTagAnnotation, getGitHubRemoteInfo } from "../git/index.js";
-import { createGithubRelease } from "../integrations/github.js";
+import { createGithubRelease, interactiveGithubLogin } from "../integrations/github.js";
 import { resolveGithubToken } from "../core/token.js";
 import { setLocale, t, type Locale } from "../i18n/index.js";
 
 export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof loadConfig>>): Promise<void> {
   const cfg = config ?? await loadConfig();
 
-  const token = await resolveGithubToken(cfg.github?.token);
+  let token = await resolveGithubToken(cfg.github?.token);
   if (!token) {
     p.log.warn(t().githubRelease.noToken);
-    return;
+    const login = await p.confirm({
+      message: t().execute.githubDeviceLoginPrompt,
+      initialValue: true,
+    });
+    if (!p.isCancel(login) && login) {
+      token = await interactiveGithubLogin();
+    }
+
+    if (!token) {
+      return;
+    }
   }
 
   const ghInfo = await getGitHubRemoteInfo();

@@ -182,5 +182,8 @@ export type Messages = {
     reorderDone: string;
     reorderFailed: (msg: string) => string;
     githubSkippedPrerelease: string;
+    githubDeviceLoginPrompt: string;
+    githubDeviceLoginInstructions: (url: string, code: string) => string;
+    githubDeviceLoginSuccess: string;
   };
 };
