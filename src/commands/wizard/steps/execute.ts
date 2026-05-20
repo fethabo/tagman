@@ -224,8 +224,14 @@ export async function executeRelease(
       const ghSpinner = p.spinner();
       ghSpinner.start(t().execute.githubCreating);
       const urls: string[] = [];
+      let skippedPrerelease = 0;
       for (const [pkgName, details] of state.entries()) {
         if (!details.tagMessage) continue; // skip packages where user declined tag creation (#25)
+        // Skip GitHub Release for pre-release versions when config.github.prerelease is false
+        if (details.githubPrerelease && !config.github?.prerelease) {
+          skippedPrerelease++;
+          continue;
+        }
         try {
           const tagName = buildTagName(pkgName, details.newVersion, config);
           const isPrerelease = details.githubPrerelease ?? config.github.prerelease ?? false;
@@ -244,9 +250,7 @@ export async function executeRelease(
       }
       ghSpinner.stop(t().execute.githubDone(urls.length));
       for (const url of urls) p.log.info(`  ${url}`);
-      // Warn if releases were expected but none created (#17)
-      const packagesWithTags = Array.from(state.values()).filter(d => d.tagMessage).length;
-      if (packagesWithTags > 0 && urls.length === 0) {
+      if (skippedPrerelease > 0) {
         p.log.warn(t().execute.githubSkippedPrerelease);
       }
     }
