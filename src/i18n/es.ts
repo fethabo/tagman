@@ -188,5 +188,8 @@ export const es: Messages = {
     reorderLifting: "Reordenando commits alrededor del release...",
     reorderDone: "Commits reordenados correctamente.",
     reorderFailed: (msg) => `Falló el reordenamiento: ${msg}. Revirtiendo al estado original.`,
+    githubDeviceLoginPrompt: "No se encontró token de GitHub. ¿Querés iniciar sesión por única vez via navegador para crear el release? (El token no se guardará)",
+    githubDeviceLoginInstructions: (url, code) => `Por favor abrí ${url} e ingresá el código: ${code}`,
+    githubDeviceLoginSuccess: "Sesión de GitHub iniciada exitosamente.",
   },
 };
