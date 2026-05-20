@@ -168,3 +168,7 @@
 * Merge pull request #42 from fethabo/security-secure-token-resolution-16341660628925781545 @fethabo f764077
 * **fix:** secure GitHub token resolution by removing project-level config support and adding permission checks @fethabo 321eb97
 * **feat:** add support for hotfix versioning @fethabo a08137e
+
+## [1.4.0](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.10...@fethabo/tagman@1.4.0) (2026-05-20)
+
+* **feat:** implement GitHub device login for missing tokens @fethabo 1e97b34
