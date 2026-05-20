@@ -153,3 +153,18 @@
 * Merge pull request #35 from fethabo/copilot/fix-graduation-comment-commit-issue @fethabo d5bddf1
 * **fix:** graduation tag message no longer includes full pre-release cycle commits by default @fethabo 24b6843
 * **fix:** restore @username linking for commit authors and add Copilot co-author support @fethabo 218df0f
+
+## [1.3.10](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.9...@fethabo/tagman@1.3.10) (2026-05-20)
+
+* Merge pull request #51 from fethabo/copilot/fix-pre-release-comment @fethabo 8ef7756
+* **fix:** skip GitHub Release for pre-release versions when config.github.prerelease is false @fethabo 4f435e4
+* **fix:** use chore(pre-release) commit message for pre-release tags @fethabo 4a0e862
+* **fix:** make commit type detection case-insensitive for bump suggestions @fethabo 5d8d3ea
+* **fix:** resolve correct GitHub username for commit authors in changelog and tag messages @fethabo a64236a
+* Merge pull request #47 from fethabo/copilot/fix-nombre-de-tag-nulo @fethabo 9c475b6
+* Merge pull request #44 from fethabo/testing-improvement-suggestbump-9589260838413183587 @fethabo 10df90b
+* **fix:** sanitize pre-release channel name to avoid null semver version @fethabo e9bdc9d
+* **test:** add edge case tests for suggestBump function @fethabo 2f1257a
+* Merge pull request #42 from fethabo/security-secure-token-resolution-16341660628925781545 @fethabo f764077
+* **fix:** secure GitHub token resolution by removing project-level config support and adding permission checks @fethabo 321eb97
+* **feat:** add support for hotfix versioning @fethabo a08137e
