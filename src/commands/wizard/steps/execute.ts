@@ -130,7 +130,9 @@ export async function executeRelease(
   commitSpinner.start(t().execute.committing);
 
   const pkgsArray = Array.from(state.keys());
-  const commitMsg = `chore(release): [${pkgsArray.join(", ")}]`;
+  const preReleaseBumps = new Set<ReleaseState["bump"]>(["premajor", "preminor", "prepatch", "prerelease"]);
+  const isPreRelease = Array.from(state.values()).some(d => preReleaseBumps.has(d.bump));
+  const commitMsg = `chore(${isPreRelease ? "pre-release" : "release"}): [${pkgsArray.join(", ")}]`;
 
   const filesToCommit = Array.from(state.values()).flatMap(d => [
     path.join(d.pkg.dir, "package.json"),
