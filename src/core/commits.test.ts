@@ -55,4 +55,26 @@ test("suggestBump", async (t) => {
     ];
     assert.strictEqual(suggestBump(commits), "major");
   });
+
+  await t.test("should return 'minor' for capitalized Feat: commit", () => {
+    const commits = [
+      "Feat: add new feature",
+      "fix: minor bug fix"
+    ];
+    assert.strictEqual(suggestBump(commits), "minor");
+  });
+
+  await t.test("should return 'minor' for all-uppercase FEAT: commit", () => {
+    const commits = [
+      "FEAT: add new feature"
+    ];
+    assert.strictEqual(suggestBump(commits), "minor");
+  });
+
+  await t.test("should return 'major' for capitalized Feat! breaking commit", () => {
+    const commits = [
+      "Feat!: breaking change"
+    ];
+    assert.strictEqual(suggestBump(commits), "major");
+  });
 });
