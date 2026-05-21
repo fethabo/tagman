@@ -98,6 +98,7 @@ export type Messages = {
     cascadeGoBack: string;
     cascadeYes: string;
     cascadeNo: string;
+    progress: (current: number, total: number) => string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;

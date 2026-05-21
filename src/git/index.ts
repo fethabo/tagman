@@ -81,14 +81,16 @@ export async function getCommitsForPath(path: string, sinceTag: string | null): 
       path,
     ]);
 
-    return log.all.map(c => ({
-      hash: c.hash,
-      date: c.date,
-      message: c.message,
-      body: c.body,
-      author_name: c.author_name,
-      author_email: c.author_email,
-    }));
+    return log.all
+      .filter(c => !c.message.startsWith("chore(release):") && !c.message.startsWith("chore(pre-release):"))
+      .map(c => ({
+        hash: c.hash,
+        date: c.date,
+        message: c.message,
+        body: c.body,
+        author_name: c.author_name,
+        author_email: c.author_email,
+      }));
   } catch (error) {
     console.error(`Error getting commits for path ${path}:`, error);
     return [];
@@ -102,14 +104,16 @@ export async function getCommitsForPath(path: string, sinceTag: string | null): 
 export async function getRepoCommitsSince(sinceTag: string | null): Promise<CommitInfo[]> {
   try {
     const log = await git.log([sinceTag ? `${sinceTag}..HEAD` : "HEAD"]);
-    return log.all.map(c => ({
-      hash: c.hash,
-      date: c.date,
-      message: c.message,
-      body: c.body,
-      author_name: c.author_name,
-      author_email: c.author_email,
-    }));
+    return log.all
+      .filter(c => !c.message.startsWith("chore(release):") && !c.message.startsWith("chore(pre-release):"))
+      .map(c => ({
+        hash: c.hash,
+        date: c.date,
+        message: c.message,
+        body: c.body,
+        author_name: c.author_name,
+        author_email: c.author_email,
+      }));
   } catch {
     return [];
   }
