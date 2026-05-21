@@ -104,6 +104,7 @@ export const en: Messages = {
     cascadeGoBack: "Go back to step 3",
     cascadeYes: "Yes",
     cascadeNo: "No",
+    progress: (current, total) => `[Package ${current} of ${total}]`,
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `Create a Git tag for ${pkg}@${version}?`,
@@ -139,7 +140,7 @@ export const en: Messages = {
     resumeQuestion: "Do you want to resume it?",
     resume: "Resume draft",
     discard: "Discard and start fresh",
-    summaryTitle: "Planned release summary",
+    summaryTitle: "Planned changes summary",
     actionQuestion: "What do you want to do?",
     proceed: "Proceed with the release",
     save: "Save as draft and exit",

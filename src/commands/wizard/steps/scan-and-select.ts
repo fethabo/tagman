@@ -152,12 +152,15 @@ export async function scanAndSelectPackages(
 
   const state = new Map<string, ReleaseState>();
   const queue = [...selectedNames];
+  const totalInQueue = queue.length;
   const processed = new Set<string>();
   let hasReorder = false;
 
   while (queue.length > 0) {
     const pkgName = queue.shift()!;
     if (processed.has(pkgName)) continue;
+    const progressCount = processed.size + 1;
+    const progressLabel = totalInQueue > 1 ? color.dim(` ${t().scan.progress(progressCount, totalInQueue)}`) : "";
 
     const pkgInfo = allCandidates.find(info => info.pkg.manifest.name === pkgName);
     if (!pkgInfo) {
@@ -198,7 +201,7 @@ export async function scanAndSelectPackages(
           if (pkgInfo.extraCommits.length > 0) {
             const extraCountInfo = color.dim(`(${t().scan.selectExtraCommitsCount(pkgInfo.extraCommits.length, pkgInfo.lastTag)})`);
             const extraHashes = await commitMultiSelect(
-              `${t().scan.selectExtraCommits(pkgName)} ${color.cyan(pkgName)} ${extraCountInfo}`,
+              `${t().scan.selectExtraCommits(pkgName)} ${color.cyan(pkgName)}${progressLabel} ${extraCountInfo}`,
               pkgInfo.extraCommits.map(c => ({
                 value: c.hash,
                 label: linkifyCommitMessage(`${c.hash.substring(0, 7)} - ${c.message}`, repoBaseUrl),
@@ -223,7 +226,7 @@ export async function scanAndSelectPackages(
 
           if (!pkgInfo.isExtraOnly) {
             const selectedCommitHashes = await commitMultiSelect(
-              `${t().scan.selectCommits(pkgName)} ${color.cyan(pkgName)} ${color.dim(`[${currentBranch}]`)}`,
+              `${t().scan.selectCommits(pkgName)} ${color.cyan(pkgName)}${progressLabel} ${color.dim(`[${currentBranch}]`)}`,
               pkgInfo.commits.map(c => ({
                 value: c.hash,
                 label: linkifyCommitMessage(`${c.hash.substring(0, 7)} - ${c.message}`, repoBaseUrl),
@@ -341,7 +344,7 @@ export async function scanAndSelectPackages(
             if (pkgInfo.extraCommits.length > 0) {
               const extraCountInfo = color.dim(`(${t().scan.selectExtraCommitsCount(pkgInfo.extraCommits.length, pkgInfo.lastTag)})`);
               const extraHashes = await commitMultiSelect(
-                `${t().scan.selectExtraCommits(pkgName)} ${color.cyan(pkgName)} ${extraCountInfo}`,
+                `${t().scan.selectExtraCommits(pkgName)} ${color.cyan(pkgName)}${progressLabel} ${extraCountInfo}`,
                 pkgInfo.extraCommits.map(c => ({
                   value: c.hash,
                   label: linkifyCommitMessage(`${c.hash.substring(0, 7)} - ${c.message}`, repoBaseUrl),
@@ -415,7 +418,7 @@ export async function scanAndSelectPackages(
           );
 
           const result = await wizardSelect(
-            `${t().scan.selectBump(pkgName, currentVersion)} ${color.cyan(pkgName)} (Current: ${currentVersion})`,
+            `${t().scan.selectBump(pkgName, currentVersion)} ${color.cyan(pkgName)}${progressLabel} (Current: ${currentVersion})`,
             mainBumpOptions,
             isGraduationMode ? "graduate" : (isCurrentPrerelease ? (isCurrentHotfix ? "hotfix" : "prerelease") : suggested),
             t().scan.goBack,
@@ -436,7 +439,7 @@ export async function scanAndSelectPackages(
             preReleaseLoop: while (!preBumpSettled) {
               // Step 3a: Pre-release base bump type
               const typeResult = await wizardSelect(
-                t().scan.selectPreReleaseType(pkgName),
+                `${t().scan.selectPreReleaseType(pkgName)}${progressLabel}`,
                 [
                   { value: "prepatch", label: t().scan.prepatch(semver.inc(currentVersion, "prepatch", "alpha")!) },
                   { value: "preminor", label: t().scan.preminor(semver.inc(currentVersion, "preminor", "alpha")!) },
@@ -471,7 +474,7 @@ export async function scanAndSelectPackages(
                   { value: "custom", label: t().scan.channelCustom },
                 );
                 const channelResult = await wizardSelect(
-                  t().scan.selectChannel,
+                  `${t().scan.selectChannel}${progressLabel}`,
                   channelOptions,
                   isDefaultBranch ? "alpha" : currentBranch,
                   t().scan.goBack,
@@ -661,7 +664,7 @@ export async function scanAndSelectPackages(
       ? `${config.annotationMessage}\n\n`
       : "";
 
-    const defaultTagMsg = `Release ${tagHeader}\n\n${annotationPrefix}` + items.join("\n");
+    const defaultTagMsg = `${tagHeader}\n\n${annotationPrefix}` + items.join("\n");
 
     state.set(pkgName, {
       pkg: pkgInfo.pkg,
