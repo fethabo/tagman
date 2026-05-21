@@ -142,7 +142,7 @@ export const es: Messages = {
     discard: "Descartar y empezar de nuevo",
     summaryTitle: "Resumen de cambios planificado",
     actionQuestion: "¿Qué querés hacer?",
-    proceed: "Continuar con el release",
+    proceed: "Continuar con la creación de tags",
     save: "Guardar como borrador y salir",
     goBack: "Volver a editar las selecciones",
     saved: "Borrador guardado. Podés retomarlo la próxima vez que ejecutés tagman.",

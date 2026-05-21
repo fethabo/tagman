@@ -142,7 +142,7 @@ export const en: Messages = {
     discard: "Discard and start fresh",
     summaryTitle: "Planned changes summary",
     actionQuestion: "What do you want to do?",
-    proceed: "Proceed with the release",
+    proceed: "Proceed with the tag creation",
     save: "Save as draft and exit",
     goBack: "Go back to edit selections",
     saved: "Draft saved. You can resume it next time you run tagman.",
