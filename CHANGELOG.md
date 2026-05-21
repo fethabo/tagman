@@ -172,3 +172,8 @@
 ## [1.4.0](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.3.10...@fethabo/tagman@1.4.0) (2026-05-20)
 
 * **feat:** implement GitHub device login for missing tokens @fethabo 1e97b34
+
+## [1.4.1](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.0...@fethabo/tagman@1.4.1) (2026-05-21)
+
+* **fix:** proceed text changes from release to create tags @fethabo 1615945
+* **fix(cli):** resolve git history bug and enhance ux flow for multi-package releases @fethabo 74c4168
