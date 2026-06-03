@@ -172,9 +172,7 @@ export async function executeRelease(
     const liftSpinner = p.spinner();
     liftSpinner.start(t().execute.reorderLifting);
     try {
-      for (const hash of dedupedLift) {
-        await git.raw(["cherry-pick", hash]);
-      }
+      await git.raw(["cherry-pick", ...dedupedLift]);
       liftSpinner.stop(t().execute.reorderDone);
     } catch (e: any) {
       await git.raw(["cherry-pick", "--abort"]).catch(() => {});
