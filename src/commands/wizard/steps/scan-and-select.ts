@@ -156,13 +156,18 @@ export async function scanAndSelectPackages(
   const processed = new Set<string>();
   let hasReorder = false;
 
+  // Build a Map for O(1) lookups and mutations
+  const candidateMap = new Map<string, PackageInfo>(
+    allCandidates.map(info => [info.pkg.manifest.name, info])
+  );
+
   while (queue.length > 0) {
     const pkgName = queue.shift()!;
     if (processed.has(pkgName)) continue;
     const progressCount = processed.size + 1;
     const progressLabel = totalInQueue > 1 ? color.dim(` ${t().scan.progress(progressCount, totalInQueue)}`) : "";
 
-    const pkgInfo = allCandidates.find(info => info.pkg.manifest.name === pkgName);
+    const pkgInfo = candidateMap.get(pkgName);
     if (!pkgInfo) {
       processed.add(pkgName);
       continue;
@@ -608,7 +613,7 @@ export async function scanAndSelectPackages(
             queue.push(dep.manifest.name);
             cascadeAddedToQueue.push(dep.manifest.name);
 
-            const existing = allCandidates.find(info => info.pkg.manifest.name === dep.manifest.name);
+            const existing = candidateMap.get(dep.manifest.name);
             if (!existing) {
               const cascadeEntry: PackageInfo = {
                 pkg: dep,
@@ -616,6 +621,7 @@ export async function scanAndSelectPackages(
                 extraCommits: [],
                 lastTag: null,
               };
+              candidateMap.set(dep.manifest.name, cascadeEntry);
               allCandidates.push(cascadeEntry);
               cascadeAddedNewEntry.push(dep.manifest.name);
             } else {
@@ -633,11 +639,12 @@ export async function scanAndSelectPackages(
           if (idx !== -1) queue.splice(idx, 1);
         }
         for (const name of cascadeAddedNewEntry) {
+          candidateMap.delete(name);
           const i = allCandidates.findIndex(info => info.pkg.manifest.name === name);
           if (i !== -1) allCandidates.splice(i, 1);
         }
         for (const name of cascadeModifiedEntry) {
-          const existing = allCandidates.find(info => info.pkg.manifest.name === name);
+          const existing = candidateMap.get(name);
           if (existing) {
             existing.commits = existing.commits.filter(c => c.hash !== "cascade");
           }
