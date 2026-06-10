@@ -177,3 +177,11 @@
 
 * **fix:** proceed text changes from release to create tags @fethabo 1615945
 * **fix(cli):** resolve git history bug and enhance ux flow for multi-package releases @fethabo 74c4168
+
+## [1.4.2](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.1...@fethabo/tagman@1.4.2) (2026-06-10)
+
+* **fix:** correccion de issues [#56](https://github.com/fethabo/tagman/issues/56), [#57](https://github.com/fethabo/tagman/issues/57), [#58](https://github.com/fethabo/tagman/issues/58) y [#62](https://github.com/fethabo/tagman/issues/62) con claude fable. @fethabo 55618fe
+* Merge pull request [#60](https://github.com/fethabo/tagman/issues/60) from fethabo/performance-optimize-cherry-pick-10390016752797553915 @fethabo 939a94d
+* Merge pull request [#61](https://github.com/fethabo/tagman/issues/61) from fethabo/perf/optimize-scan-and-select-14834035251304406346 @fethabo 239c150
+* **perf(scan):** optimize O(N*M) candidate lookups with Map @fethabo f76368b
+* **perf:** optimize git cherry-pick to process multiple commits in bulk @fethabo 2d67102
