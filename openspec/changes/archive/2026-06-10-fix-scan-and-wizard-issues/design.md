@@ -50,9 +50,27 @@ async function getTagsSortedBySemver(packageName: string): Promise<string[]> {
 `getLastTagForPackage` devuelve el primer elemento; `getLastStableTagForPackage` y `getLatestRemoteStableVersion` devuelven el primero con `semver.prerelease(version) === null`. Se elimina `--sort=-v:refname` de las tres.
 
 - **Por qué no `versionsort.suffix`**: requiere configuración de git en la máquina/repo del usuario; no es portable ni controlable desde tagman.
-- **Por qué no excluir commits alcanzables desde todos los tags** (`git log HEAD --not <tags...>`): resolvería también ordenamientos exóticos, pero cambia la semántica del rango (el changelog de graduación usa deliberadamente `lastStableTag..HEAD`) y es más invasivo. La causa raíz es el orden; se corrige el orden.
 - **Filtrado de tags no-semver**: un tag tipo `pkg@latest` rompería `semver.rcompare`; se descarta con `semver.valid`. Hoy `--sort=-v:refname` los devuelve mezclados, así que esto además endurece el comportamiento actual.
 - Nota: el matching `name@*` de packages cuyos nombres son prefijo de otros (`pkg` vs `pkg-utils`) no cambia: `pkg-utils@1.0.0` produce version `utils@1.0.0` → inválido → descartado, comportamiento incluso más correcto que el actual.
+
+### D1b (#62) — El escaneo usa exclusión multi-tag, no un baseline de tag único
+
+**Revisión post-implementación.** La validación en el repo real del usuario (monorepo `delta`) demostró que ningún baseline de tag único es correcto cuando hay **canales de pre-release paralelos por rama**: el package `transporte` tenía `1.1.0-implementar-tramite-de-registro-remuco.0–.4` releaseados en una rama de feature y `1.1.0` estable graduado desde *otro* canal/rama. El tag semver-mayor (`1.1.0`) no contiene en su historia los commits de la rama de feature (solo releaseados bajo los tags `remuco.N`), por lo que `1.1.0..HEAD` los re-lista. Y elegir "el tag del canal actual" no es derivable del nombre del tag de forma genérica.
+
+Semántica correcta: **un commit está sin releasear si no es alcanzable desde NINGÚN tag `name@*` del package**. Nuevas funciones en `src/git/index.ts`:
+
+```typescript
+getUnreleasedCommitsForPath(path, packageName)  // git log HEAD ^tag1 ^tag2 ... -- path
+getUnreleasedRepoCommits(packageName)           // git log HEAD ^tag1 ^tag2 ...
+```
+
+El loop de escaneo de `scan-and-select.ts` usa estas funciones en lugar de `getCommitsForPath(dir, lastTag)` / `getRepoCommitsSince(lastTag)`.
+
+- **Se exceptúa la graduación**: el changelog de graduación agrega deliberadamente todo el ciclo desde el último estable (`getCommitsForPath(dir, lastStableTag)`), eso no cambia.
+- **Exclusión explícita con `^tag`** en lugar de `--not --tags=<pattern>`: comportamiento inequívoco, testeable, y reutiliza `listAllTags(pattern)`. La cantidad de tags por package (decenas) no presenta problema de longitud de args ni de performance.
+- **Package nunca releaseado**: lista de tags vacía → `git log HEAD -- path` = todos los commits, igual que el comportamiento previo con `sinceTag = null`.
+- **D1 sigue vigente**: el orden semver de `getLastTagForPackage`/`getLastStableTagForPackage`/`getLatestRemoteStableVersion` se mantiene para la lógica de graduación, el chequeo de conflictos remotos y el display.
+- **Limitación conocida**: `lastTag` (semver-mayor) se sigue usando como ancla del cálculo de lift en la rama de graduación con cero commits y como texto informativo "desde <tag>" del paso 2b; en topologías paralelas puede no ser ancestro de HEAD, lo que a lo sumo bloquea el reorder de graduación con la advertencia existente (fallo seguro).
 
 ### D2 (#58) — Limpiar `isExtraOnly` al insertar el pseudo-commit cascade
 

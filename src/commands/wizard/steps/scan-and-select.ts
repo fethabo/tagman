@@ -3,8 +3,8 @@ import color from "picocolors";
 import semver from "semver";
 import {
   getCommitsForPath, getLastTagForPackage, getLastStableTagForPackage,
-  getLatestRemoteStableVersion, getRepoCommitsSince, getCurrentBranch,
-  getNotPushedHashes, getGitHubRemoteInfo, git, type CommitInfo,
+  getLatestRemoteStableVersion, getUnreleasedCommitsForPath, getUnreleasedRepoCommits,
+  getCurrentBranch, getNotPushedHashes, getGitHubRemoteInfo, git, type CommitInfo,
 } from "../../../git/index.js";
 import { suggestBump } from "../../../core/commits.js";
 import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js";
@@ -70,16 +70,21 @@ export async function scanAndSelectPackages(
 
   for (const pkg of allPackages) {
     const lastTag = await getLastTagForPackage(pkg.manifest.name);
-    const commits = await getCommitsForPath(pkg.dir, lastTag);
+    // "Unreleased" means not reachable from ANY tag of the package — a single
+    // lastTag..HEAD range re-lists already-released commits when pre-release
+    // channels run in parallel branches (#62).
+    const commits = await getUnreleasedCommitsForPath(pkg.dir, pkg.manifest.name);
     if (commits.length > 0) {
-      const repoCommits = await getRepoCommitsSince(lastTag);
+      const repoCommits = await getUnreleasedRepoCommits(pkg.manifest.name);
       const pathHashes = new Set(commits.map(c => c.hash));
       const extraCommits = repoCommits.filter(c => !pathHashes.has(c.hash));
       packagesWithCommits.push({ pkg, commits, extraCommits, lastTag });
     } else if (semver.prerelease(pkg.manifest.version) !== null) {
       const lastStableTag = await getLastStableTagForPackage(pkg.manifest.name);
+      // Graduation changelogs deliberately aggregate the whole cycle since the
+      // last stable tag, so this keeps the single-tag range.
       const cycleCommits = await getCommitsForPath(pkg.dir, lastStableTag);
-      const extraCommits = await getRepoCommitsSince(lastTag);
+      const extraCommits = await getUnreleasedRepoCommits(pkg.manifest.name);
       graduationCandidates.push({
         pkg,
         commits: cycleCommits,
@@ -88,7 +93,7 @@ export async function scanAndSelectPackages(
         isGraduation: true,
       });
     } else {
-      const repoCommits = await getRepoCommitsSince(lastTag);
+      const repoCommits = await getUnreleasedRepoCommits(pkg.manifest.name);
       if (repoCommits.length > 0) {
         extraOnlyCandidates.push({
           pkg,

@@ -25,8 +25,14 @@
 - [x] 4.2 Agregar key i18n `scan.channelNextStepHint` en `src/i18n/types.ts`, `es.ts` y `en.ts` ("el canal se elige en el siguiente paso") y mostrarla como hint en el prompt del paso 3a
 - [x] 4.3 Verificado: `semver.inc("1.2.3-alpha.4","prepatch","channel")` = `1.2.4-channel.0` → `1.2.4-{channel}.0`; solo se sustituye el canal inyectado (replace literal `-channel.`), nunca el pre-release de la versión actual; values y cálculo 3a→3b intactos
 
-## 5. Cierre
+## 5. Fix #62 parte 2 — Exclusión multi-tag (reapertura tras validación en repo real)
 
-- [x] 5.1 Correr `pnpm build` sin errores de TypeScript (ejecutado por el usuario)
-- [x] 5.2 N/A — el proyecto no tiene ESLint configurado (sin `eslint.config.*` ni `eslintConfig` en package.json)
-- [x] 5.3 Verificado por build estricto + revisión de integración: firmas públicas de `git/index.ts` sin cambios, `channelNextStepHint` tipado en `Messages`/es/en, `previewVersion` tipa contra `semver.ReleaseType`; flujos checkpoint/draft/execute no afectados (sandbox impidió el smoke test interactivo)
+- [x] 5.1 Agregar `getUnreleasedCommitsForPath(path, packageName)` y `getUnreleasedRepoCommits(packageName)` en `src/git/index.ts`: `git log HEAD ^tag1 ^tag2 … [-- path]` excluyendo todos los tags `name@*`
+- [x] 5.2 Reemplazar en el loop de escaneo de `scan-and-select.ts`: `getCommitsForPath(dir, lastTag)` → `getUnreleasedCommitsForPath`, `getRepoCommitsSince(lastTag)` → `getUnreleasedRepoCommits` (3 sitios); la recolección de ciclo de graduación conserva `getCommitsForPath(dir, lastStableTag)`
+- [x] 5.3 Verificado por el usuario en el repo real (delta, rama `implementar-tramite-de-registro-remuco`): el escaneo de `transporte` ya no lista los commits releaseados en los tags `remuco.0–.4` ni en `1.1.0`
+
+## 6. Cierre
+
+- [x] 6.1 Correr `pnpm build` sin errores de TypeScript (ejecutado por el usuario; re-ejecutar tras la parte 2 del fix #62)
+- [x] 6.2 N/A — el proyecto no tiene ESLint configurado (sin `eslint.config.*` ni `eslintConfig` en package.json)
+- [x] 6.3 Verificado por build estricto + revisión de integración: firmas públicas de `git/index.ts` sin cambios, `channelNextStepHint` tipado en `Messages`/es/en, `previewVersion` tipa contra `semver.ReleaseType`; flujos checkpoint/draft/execute no afectados (sandbox impidió el smoke test interactivo)

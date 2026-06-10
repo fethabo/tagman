@@ -112,6 +112,58 @@ export async function getCommitsForPath(path: string, sinceTag: string | null): 
 }
 
 /**
+ * Gets commits that affected a specific path and are not reachable from ANY
+ * existing tag of the package. A single `lastTag..HEAD` range is not enough in
+ * repos with parallel pre-release channels (#62): the semver-highest tag can
+ * belong to another branch's history, while the current branch's commits were
+ * already released under its own channel tags — a single-tag baseline re-lists
+ * them. Excluding every `name@*` tag handles any branching topology.
+ */
+export async function getUnreleasedCommitsForPath(path: string, packageName: string): Promise<CommitInfo[]> {
+  try {
+    const tags = await listAllTags(`${packageName}@*`);
+    const log = await git.log(["HEAD", ...tags.map(t => `^${t}`), "--", path]);
+
+    return log.all
+      .filter(c => !c.message.startsWith("chore(release):") && !c.message.startsWith("chore(pre-release):"))
+      .map(c => ({
+        hash: c.hash,
+        date: c.date,
+        message: c.message,
+        body: c.body,
+        author_name: c.author_name,
+        author_email: c.author_email,
+      }));
+  } catch (error) {
+    console.error(`Error getting unreleased commits for path ${path}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Gets all repo commits (no path filter) not reachable from any tag of the
+ * package. Counterpart of getUnreleasedCommitsForPath for "extra" commits.
+ */
+export async function getUnreleasedRepoCommits(packageName: string): Promise<CommitInfo[]> {
+  try {
+    const tags = await listAllTags(`${packageName}@*`);
+    const log = await git.log(["HEAD", ...tags.map(t => `^${t}`)]);
+    return log.all
+      .filter(c => !c.message.startsWith("chore(release):") && !c.message.startsWith("chore(pre-release):"))
+      .map(c => ({
+        hash: c.hash,
+        date: c.date,
+        message: c.message,
+        body: c.body,
+        author_name: c.author_name,
+        author_email: c.author_email,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Gets all commits in the repository since a given tag (no path filter).
  * Used to find commits that don't touch a specific package's directory.
  */

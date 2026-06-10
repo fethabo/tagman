@@ -26,9 +26,17 @@ Resolución del último tag de un package por orden semver real, para que el esc
 - **WHEN** existen los tags `pkg@1.9.0`, `pkg@1.10.0` y `pkg@1.10.0-rc.2`
 - **THEN** `getLastStableTagForPackage("pkg")` devuelve `pkg@1.10.0`
 
-### Requirement: Scan baseline excludes already-released commits
-El escaneo de commits de un package SHALL usar como baseline el tag semver-mayor, de modo que los commits alcanzables desde ese tag no aparezcan como candidatos a release.
+### Requirement: Scan excludes commits reachable from any package tag
+El escaneo de commits de un package SHALL listar únicamente commits que NO sean alcanzables desde ningún tag `name@*` existente del package (exclusión multi-tag), en lugar de usar un rango desde un único tag baseline. La recolección de commits de ciclo para graduación (desde el último tag estable) queda exenta: agrega deliberadamente commits ya incluidos en pre-releases del ciclo.
 
-#### Scenario: Escaneo tras graduación de pre-release (caso del issue #62)
+#### Scenario: Escaneo tras graduación de pre-release (caso original del issue #62)
 - **WHEN** un package fue tageado `pkg@1.2.0-beta.3` en una rama, luego graduado a `pkg@1.2.0` (cuyo changelog incluyó los commits de la beta), y se ejecuta un nuevo escaneo
 - **THEN** los commits ya incluidos en el changelog de `1.2.0` NO aparecen en la lista del paso 2; solo aparecen commits posteriores al tag `pkg@1.2.0`
+
+#### Scenario: Canales de pre-release paralelos en ramas distintas (reapertura del issue #62)
+- **WHEN** existen tags `pkg@1.1.0-canal-a.0` … `pkg@1.1.0-canal-a.4` creados en la rama `canal-a`, y un tag estable `pkg@1.1.0` creado desde otra rama (semver-mayor pero sin los commits de `canal-a` en su historia), y se escanea desde la rama `canal-a`
+- **THEN** los commits ya releaseados bajo los tags `canal-a.N` NO aparecen en el paso 2, aunque no sean alcanzables desde `pkg@1.1.0`; solo aparecen los commits que no están en ningún tag del package
+
+#### Scenario: Package nunca releaseado
+- **WHEN** un package no tiene ningún tag `name@*`
+- **THEN** el escaneo lista todos los commits que afectan su directorio (comportamiento previo sin baseline)
