@@ -189,3 +189,7 @@
 ## [1.4.3](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.2...@fethabo/tagman@1.4.3) (2026-06-10)
 
 * **fix:** se corrige escaneo de commits fixes [#62](https://github.com/fethabo/tagman/issues/62) @fethabo d0abb13
+
+## [1.4.4](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.3...@fethabo/tagman@1.4.4) (2026-06-10)
+
+* **fix:** corregida lista de packages en step 1. fixes [#64](https://github.com/fethabo/tagman/issues/64) @fethabo 4ea3d78
