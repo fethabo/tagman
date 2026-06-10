@@ -127,16 +127,25 @@ export async function formatCommitList(
     // Use short hash without markdown link for GitHub autolinking
     const hashLink = baseUrl && c.hash !== "cascade" ? shortHash : `([${shortHash}](${c.hash}))`;
     
-    let msg = c.message;
-    // Keep #issue for autolinking
-    msg = msg.replace(/#(\d+)/g, (match, issueNum) => {
-      return baseUrl ? `#${issueNum}` : `([#${issueNum}](#${issueNum}))`;
-    });
-
-    let formattedMsg = msg;
+    // Bold the conventional-commit prefix before linkifying, so the colon
+    // lookup never matches the ":" inside an inserted link URL.
+    let formattedMsg = c.message;
     const colonIdx = formattedMsg.indexOf(':');
     if (colonIdx !== -1 && colonIdx < 30) {
       formattedMsg = `**${formattedMsg.substring(0, colonIdx + 1)}**${formattedMsg.substring(colonIdx + 1)}`;
+    }
+
+    // GitHub doesn't autolink #N inside tag annotations or markdown files,
+    // so issue references become explicit markdown links (#57).
+    if (baseUrl) {
+      // Linkify cross-repo references first (owner/repo#N) to avoid double-processing
+      formattedMsg = formattedMsg.replace(/([\w.-]+\/[\w.-]+)#(\d+)/g, (_match, repo, num) => {
+        return `[${repo}#${num}](https://github.com/${repo}/issues/${num})`;
+      });
+      // Then linkify same-repo references (#N) not preceded by a slash or word char
+      formattedMsg = formattedMsg.replace(/(^|[^/\w])#(\d+)/g, (_match, prefix, num) => {
+        return `${prefix}[#${num}](${baseUrl}/issues/${num})`;
+      });
     }
 
     // Resolution priority:

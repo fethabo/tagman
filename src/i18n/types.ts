@@ -75,6 +75,7 @@ export type Messages = {
     channelCustom: string;
     channelCustomInput: string;
     channelBranchHint: string;
+    channelNextStepHint: string;
     channelSanitized: (original: string, sanitized: string) => string;
     trailingCommitsWarning: (count: number) => string;
     trailingCommitsQuestion: string;

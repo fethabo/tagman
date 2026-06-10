@@ -443,12 +443,15 @@ export async function scanAndSelectPackages(
             let preBumpSettled = false;
             preReleaseLoop: while (!preBumpSettled) {
               // Step 3a: Pre-release base bump type
+              // Preview versions use a "{channel}" placeholder — the real channel is chosen in step 3b (#56)
+              const previewVersion = (type: semver.ReleaseType) =>
+                semver.inc(currentVersion, type, "channel")!.replace("-channel.", "-{channel}.");
               const typeResult = await wizardSelect(
-                `${t().scan.selectPreReleaseType(pkgName)}${progressLabel}`,
+                `${t().scan.selectPreReleaseType(pkgName)}${progressLabel} ${color.dim(`(${t().scan.channelNextStepHint})`)}`,
                 [
-                  { value: "prepatch", label: t().scan.prepatch(semver.inc(currentVersion, "prepatch", "alpha")!) },
-                  { value: "preminor", label: t().scan.preminor(semver.inc(currentVersion, "preminor", "alpha")!) },
-                  { value: "premajor", label: t().scan.premajor(semver.inc(currentVersion, "premajor", "alpha")!) },
+                  { value: "prepatch", label: t().scan.prepatch(previewVersion("prepatch")) },
+                  { value: "preminor", label: t().scan.preminor(previewVersion("preminor")) },
+                  { value: "premajor", label: t().scan.premajor(previewVersion("premajor")) },
                 ],
                 "preminor",
                 t().scan.goBack,
@@ -625,7 +628,15 @@ export async function scanAndSelectPackages(
               allCandidates.push(cascadeEntry);
               cascadeAddedNewEntry.push(dep.manifest.name);
             } else {
-              existing.commits.unshift({ hash: "cascade", date: "", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman", author_email: "tagman" });
+              const cascadeCommit: CommitInfo = { hash: "cascade", date: "", message: `chore: update dependency ${pkgName} to ${newVersion}`, body: "", author_name: "tagman", author_email: "tagman" };
+              if (existing.isGraduation) {
+                // Graduation step 2 only offers extraCommits, so the pseudo-commit goes there (#58)
+                existing.extraCommits.unshift(cascadeCommit);
+              } else {
+                existing.commits.unshift(cascadeCommit);
+                // The entry now has a selectable path commit, so step 2 must not be skipped (#58)
+                existing.isExtraOnly = false;
+              }
               cascadeModifiedEntry.push(dep.manifest.name);
             }
           }
@@ -647,6 +658,11 @@ export async function scanAndSelectPackages(
           const existing = candidateMap.get(name);
           if (existing) {
             existing.commits = existing.commits.filter(c => c.hash !== "cascade");
+            existing.extraCommits = existing.extraCommits.filter(c => c.hash !== "cascade");
+            // An entry left without path commits was an extra-only candidate before the cascade (#58)
+            if (!existing.isGraduation && existing.commits.length === 0 && existing.extraCommits.length > 0) {
+              existing.isExtraOnly = true;
+            }
           }
         }
       }

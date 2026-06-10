@@ -18,15 +18,31 @@ export async function hasUncommittedChanges(): Promise<boolean> {
 }
 
 /**
+ * Lists tags matching `name@*` sorted by semver descending (highest first).
+ * Sorting happens in JS because git's `--sort=-v:refname` doesn't understand
+ * pre-release suffixes (it ranks `1.2.0-beta.3` above `1.2.0`), which made the
+ * scan baseline regress to an old pre-release tag after a graduation (#62).
+ * Tags whose version portion is not valid semver are discarded.
+ */
+async function getTagsSortedBySemver(packageName: string): Promise<string[]> {
+  const raw = await git.raw(["tag", "-l", `${packageName}@*`]);
+  return raw
+    .split("\n")
+    .filter(Boolean)
+    .map(tag => ({ tag, version: tag.slice(packageName.length + 1) }))
+    .filter(({ version }) => semver.valid(version) !== null)
+    .sort((a, b) => semver.rcompare(a.version, b.version))
+    .map(({ tag }) => tag);
+}
+
+/**
  * Gets the last tag for a specific package, format: name@version.
  * Returns null if no such tag exists.
  */
 export async function getLastTagForPackage(packageName: string): Promise<string | null> {
   try {
-    // Get all tags sorted by semver (v:refname)
-    const tags = await git.raw(["tag", "-l", `${packageName}@*`, "--sort=-v:refname"]);
-    const lines = tags.split("\n").filter(Boolean);
-    return lines.length > 0 ? lines[0] : null;
+    const tags = await getTagsSortedBySemver(packageName);
+    return tags.length > 0 ? tags[0] : null;
   } catch (error) {
     return null;
   }
@@ -38,9 +54,8 @@ export async function getLastTagForPackage(packageName: string): Promise<string 
  */
 export async function getLastStableTagForPackage(packageName: string): Promise<string | null> {
   try {
-    const tags = await git.raw(["tag", "-l", `${packageName}@*`, "--sort=-v:refname"]);
-    const lines = tags.split("\n").filter(Boolean);
-    for (const tag of lines) {
+    const tags = await getTagsSortedBySemver(packageName);
+    for (const tag of tags) {
       const version = tag.slice(packageName.length + 1); // strip "name@"
       if (semver.prerelease(version) === null) return tag;
     }
@@ -57,9 +72,8 @@ export async function getLastStableTagForPackage(packageName: string): Promise<s
 export async function getLatestRemoteStableVersion(packageName: string): Promise<string | null> {
   try {
     await git.fetch(["--tags", "--quiet"]);
-    const tags = await git.raw(["tag", "-l", `${packageName}@*`, "--sort=-v:refname"]);
-    const lines = tags.split("\n").filter(Boolean);
-    for (const tag of lines) {
+    const tags = await getTagsSortedBySemver(packageName);
+    for (const tag of tags) {
       const version = tag.slice(packageName.length + 1);
       if (semver.prerelease(version) === null) return version;
     }
