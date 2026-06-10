@@ -185,3 +185,7 @@
 * Merge pull request [#61](https://github.com/fethabo/tagman/issues/61) from fethabo/perf/optimize-scan-and-select-14834035251304406346 @fethabo 239c150
 * **perf(scan):** optimize O(N*M) candidate lookups with Map @fethabo f76368b
 * **perf:** optimize git cherry-pick to process multiple commits in bulk @fethabo 2d67102
+
+## [1.4.3](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.2...@fethabo/tagman@1.4.3) (2026-06-10)
+
+* **fix:** se corrige escaneo de commits fixes [#62](https://github.com/fethabo/tagman/issues/62) @fethabo d0abb13

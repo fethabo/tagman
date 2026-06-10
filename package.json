@@ -1,6 +1,6 @@
 {
   "name": "@fethabo/tagman",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "dependencies": {
     "@clack/core": "^1.1.0",
     "@clack/prompts": "^1.1.0",
