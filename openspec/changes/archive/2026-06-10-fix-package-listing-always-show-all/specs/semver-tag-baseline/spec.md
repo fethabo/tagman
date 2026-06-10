@@ -1,32 +1,4 @@
-# semver-tag-baseline
-
-## Purpose
-
-Resolución del último tag de un package por orden semver real, para que el escaneo de commits nunca re-liste commits ya publicados (issue #62).
-
-## Requirements
-
-### Requirement: Last tag resolution by semver order
-`getLastTagForPackage(name)` SHALL devolver el tag `name@<version>` cuya `<version>` sea la mayor según comparación semver (`semver.rcompare`), sin depender del orden de `git tag --sort=-v:refname`. Los tags cuya porción de versión no sea semver válido SHALL ser descartados.
-
-#### Scenario: Pre-release tag junto a tag estable graduado
-- **WHEN** existen los tags `pkg@1.2.0-beta.3` y `pkg@1.2.0` para el package `pkg`
-- **THEN** `getLastTagForPackage("pkg")` devuelve `pkg@1.2.0` (el estable, semver-mayor), no `pkg@1.2.0-beta.3`
-
-#### Scenario: Pre-release más nueva que el último estable
-- **WHEN** existen los tags `pkg@1.2.0` y `pkg@1.3.0-rc.1`
-- **THEN** `getLastTagForPackage("pkg")` devuelve `pkg@1.3.0-rc.1` (semver `1.3.0-rc.1 > 1.2.0`)
-
-#### Scenario: Tag con versión no-semver
-- **WHEN** existen los tags `pkg@latest` y `pkg@1.0.0`
-- **THEN** `getLastTagForPackage("pkg")` devuelve `pkg@1.0.0` e ignora `pkg@latest`
-
-### Requirement: Stable tag resolution by semver order
-`getLastStableTagForPackage(name)` y `getLatestRemoteStableVersion(name)` SHALL seleccionar la versión estable (sin componente pre-release) **mayor por semver**, iterando los tags en orden semver descendente.
-
-#### Scenario: Estables fuera de orden lexicográfico
-- **WHEN** existen los tags `pkg@1.9.0`, `pkg@1.10.0` y `pkg@1.10.0-rc.2`
-- **THEN** `getLastStableTagForPackage("pkg")` devuelve `pkg@1.10.0`
+## MODIFIED Requirements
 
 ### Requirement: Scan excludes commits reachable from any package tag
 El escaneo de commits de **ruta** de un package SHALL listar únicamente commits que NO sean alcanzables desde ningún tag `name@*` existente del package (exclusión multi-tag). Esta exclusión multi-tag aplica ÚNICAMENTE a la detección de `packagesWithCommits` (función `getUnreleasedCommitsForPath`). La recolección de repo commits para `extraOnlyCandidates` SHALL usar `getRepoCommitsSince(lastTag)` con el tag más reciente por semver correcto, no la exclusión multi-tag. La recolección de commits de ciclo para graduación (desde el último tag estable) queda exenta: agrega deliberadamente commits ya incluidos en pre-releases del ciclo.

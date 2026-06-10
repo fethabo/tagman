@@ -89,6 +89,7 @@ export type Messages = {
     graduationBlockedPushed: string;
     graduationBlockedReorder: string;
     extraOnlyHint: string;
+    noCommitsHint: string;
     graduationCheckingRemote: string;
     graduationConflictWarning: (targetVersion: string, remoteVersion: string) => string;
     graduationConflictQuestion: (suggestedVersion: string) => string;

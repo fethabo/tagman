@@ -4,7 +4,7 @@ import semver from "semver";
 import {
   getCommitsForPath, getLastTagForPackage, getLastStableTagForPackage,
   getLatestRemoteStableVersion, getUnreleasedCommitsForPath, getUnreleasedRepoCommits,
-  getCurrentBranch, getNotPushedHashes, getGitHubRemoteInfo, git, type CommitInfo,
+  getRepoCommitsSince, getCurrentBranch, getNotPushedHashes, getGitHubRemoteInfo, git, type CommitInfo,
 } from "../../../git/index.js";
 import { suggestBump } from "../../../core/commits.js";
 import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js";
@@ -38,6 +38,7 @@ export type PackageInfo = {
   lastTag: string | null;
   isGraduation?: boolean;
   isExtraOnly?: boolean;
+  isNoCommits?: boolean;
 };
 
 export type ScanOptions = {
@@ -55,6 +56,7 @@ export async function scanAndSelectPackages(
   const packagesWithCommits: PackageInfo[] = [];
   const graduationCandidates: PackageInfo[] = [];
   const extraOnlyCandidates: PackageInfo[] = [];
+  const noCommitsCandidates: PackageInfo[] = [];
 
   const currentBranch = await getCurrentBranch();
   const ghInfo = await getGitHubRemoteInfo();
@@ -93,7 +95,7 @@ export async function scanAndSelectPackages(
         isGraduation: true,
       });
     } else {
-      const repoCommits = await getUnreleasedRepoCommits(pkg.manifest.name);
+      const repoCommits = await getRepoCommitsSince(lastTag);
       if (repoCommits.length > 0) {
         extraOnlyCandidates.push({
           pkg,
@@ -101,6 +103,15 @@ export async function scanAndSelectPackages(
           extraCommits: repoCommits,
           lastTag,
           isExtraOnly: true,
+        });
+      } else {
+        noCommitsCandidates.push({
+          pkg,
+          commits: [],
+          extraCommits: [],
+          lastTag,
+          isExtraOnly: true,
+          isNoCommits: true,
         });
       }
     }
@@ -112,11 +123,11 @@ export async function scanAndSelectPackages(
     p.log.info(t().scan.graduationFound(graduationCandidates.length));
   }
 
-  if (packagesWithCommits.length === 0 && graduationCandidates.length === 0 && extraOnlyCandidates.length === 0) {
+  if (packagesWithCommits.length === 0 && graduationCandidates.length === 0 && extraOnlyCandidates.length === 0 && noCommitsCandidates.length === 0) {
     return "no-commits";
   }
 
-  const allCandidates: PackageInfo[] = [...packagesWithCommits, ...graduationCandidates, ...extraOnlyCandidates];
+  const allCandidates: PackageInfo[] = [...packagesWithCommits, ...graduationCandidates, ...extraOnlyCandidates, ...noCommitsCandidates];
 
   // Step 1: Select packages
   let selectedNames: string[];
@@ -139,11 +150,13 @@ export async function scanAndSelectPackages(
           : info.isGraduation
             ? info.pkg.manifest.name
             : `${info.pkg.manifest.name} (${info.commits.length} commits)`,
-        hint: info.isExtraOnly
-          ? t().scan.extraOnlyHint
-          : info.isGraduation
-            ? t().scan.graduationHint(info.pkg.manifest.version)
-            : undefined,
+        hint: info.isNoCommits
+          ? t().scan.noCommitsHint
+          : info.isExtraOnly
+            ? t().scan.extraOnlyHint
+            : info.isGraduation
+              ? t().scan.graduationHint(info.pkg.manifest.version)
+              : undefined,
       })),
       required: true,
     });

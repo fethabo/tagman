@@ -92,6 +92,7 @@ export const en: Messages = {
     graduationBlockedPushed: "Cannot graduate at this code state: some commits since the pre-release tag have already been pushed.",
     graduationBlockedReorder: "Cannot graduate: a commit reorder is already in progress for another package in this run.",
     extraOnlyHint: "no new commits — shared commits available",
+    noCommitsHint: "no changes detected",
     graduationCheckingRemote: "Checking remote for conflicting tags...",
     graduationConflictWarning: (target, remote) =>
       `Version ${target} is already taken on the remote (latest stable: ${remote}).`,

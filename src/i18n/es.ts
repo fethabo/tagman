@@ -92,6 +92,7 @@ export const es: Messages = {
     graduationBlockedPushed: "No es posible graduar en este estado: algunos commits desde el tag pre-release ya fueron pusheados.",
     graduationBlockedReorder: "No es posible graduar: ya hay un reordenamiento en curso para otro paquete en esta ejecución.",
     extraOnlyHint: "sin commits directos — commits compartidos disponibles",
+    noCommitsHint: "sin cambios detectados",
     graduationCheckingRemote: "Verificando tags remotos antes de promover...",
     graduationConflictWarning: (target, remote) =>
       `La versión ${target} ya existe en el remoto (última estable: ${remote}).`,
