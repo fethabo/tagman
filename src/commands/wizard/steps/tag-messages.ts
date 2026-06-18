@@ -14,7 +14,7 @@ import { t } from "../../../i18n/index.js";
 
 async function buildGraduationMessage(pkgName: string, details: ReleaseState, config?: TagmanConfig): Promise<string> {
   const baseUrl = await getRepositoryBaseUrl();
-  const commits = details.commits;
+  const commits = details.changelogCommits ?? details.commits;
   const ghInfo = await getGitHubRemoteInfo();
   const ghToken = ghInfo ? await resolveGithubToken(config?.github?.token) : null;
   const ghContext = ghInfo ? { owner: ghInfo.owner, repo: ghInfo.repo, token: ghToken } : undefined;
@@ -133,9 +133,13 @@ export async function promptTagMessages(
             if (msgAction === "graduation-auto") {
               details.tagMessage = graduationAutoMsg;
             } else if (msgAction === "changelog") {
+              const sourceParsed = semver.parse(details.pkg.manifest.version);
+              const changelogBase = sourceParsed
+                ? `${sourceParsed.major}.${sourceParsed.minor}.${sourceParsed.patch}`
+                : details.newVersion;
               const changelogContent = await extractPreReleaseChangelog(
                 details.pkg.dir,
-                details.newVersion,
+                changelogBase,
                 details.prereleaseChannel
               );
               if (!changelogContent) {
