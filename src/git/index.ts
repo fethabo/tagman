@@ -12,6 +12,12 @@ export interface CommitInfo {
   author_email: string;
 }
 
+export interface TagInfo {
+  name: string;
+  date: string;
+  tagger: string;
+}
+
 export async function hasUncommittedChanges(): Promise<boolean> {
   const status = await git.status();
   return !status.isClean();
@@ -270,6 +276,31 @@ export async function listAllTags(pattern?: string): Promise<string[]> {
       : ["tag", "-l", "--sort=-v:refname"];
     const output = await git.raw(args);
     return output.split("\n").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * List all local git tags with metadata (date, tagger), sorted by creation date descending.
+ * Uses a single git call with --format to avoid N+1 round-trips.
+ */
+export async function listTagsWithMeta(): Promise<TagInfo[]> {
+  try {
+    const SEP = "\x1f";
+    const format = `%(refname:short)${SEP}%(creatordate:short)${SEP}%(taggername)`;
+    const output = await git.raw(["tag", "-l", `--sort=-creatordate`, `--format=${format}`]);
+    return output
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const parts = line.split(SEP);
+        return {
+          name: parts[0] ?? line,
+          date: parts[1] ?? "",
+          tagger: parts[2] ?? "",
+        };
+      });
   } catch {
     return [];
   }

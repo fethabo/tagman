@@ -20,6 +20,11 @@ export type Messages = {
     loadingTags: string;
     tagsLoaded: (count: number) => string;
     selectTags: string;
+    selectPackage: string;
+    selectTagVersion: (pkg: string) => string;
+    doneSelectingTags: string;
+    noTagsSelectedYet: string;
+    alreadySelected: string;
     cancelled: string;
     creating: string;
     done: (count: number) => string;
