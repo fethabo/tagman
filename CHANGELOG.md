@@ -193,3 +193,9 @@
 ## [1.4.4](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.3...@fethabo/tagman@1.4.4) (2026-06-10)
 
 * **fix:** corregida lista de packages en step 1. fixes [#64](https://github.com/fethabo/tagman/issues/64) @fethabo 4ea3d78
+
+## [1.4.5](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.4...@fethabo/tagman@1.4.5) (2026-06-19)
+
+* **fix:** corregida visualizacion de versiones en el pick de packages del releaser y el taguer, agregada opcion de desmarcar un package en ambos flujos @fethabo fd61a50
+* **fix:** corregida visualizacion de listado de tags para release en releaser. fixes [#64](https://github.com/fethabo/tagman/issues/64) @fethabo 2fefc69
+* **fix:** corregido bug de historial en graduation. fixes [#67](https://github.com/fethabo/tagman/issues/67) @fethabo 95cd40c
