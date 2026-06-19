@@ -29,6 +29,7 @@ export type Messages = {
     creating: string;
     done: (count: number) => string;
     failed: (tag: string, msg: string) => string;
+    deselectTag: string;
   };
   checkpoint: {
     uncommittedWarning: string;
@@ -106,6 +107,9 @@ export type Messages = {
     cascadeYes: string;
     cascadeNo: string;
     progress: (current: number, total: number) => string;
+    removePackages: string;
+    removePackagesTitle: string;
+    removePackagesEmpty: string;
   };
   tagMessages: {
     createTagQuestion: (pkg: string, version: string) => string;

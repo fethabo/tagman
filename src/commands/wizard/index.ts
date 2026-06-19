@@ -104,19 +104,52 @@ export async function runWizardFlow(
 
           // Post-scan summary with draft-save option (interactive mode only)
           if (!options.dryRun && !options.yes) {
-            const summaryAction = await showScanSummaryPrompt(state);
+            let backToScan = false;
+            while (true) {
+              const summaryAction = await showScanSummaryPrompt(state!);
 
-            if (p.isCancel(summaryAction)) {
-              p.cancel(t().scan.cancelled);
-              return;
+              if (p.isCancel(summaryAction)) {
+                p.cancel(t().scan.cancelled);
+                return;
+              }
+              if (summaryAction === "save") {
+                await saveDraft(state!);
+                p.outro(t().draft.saved);
+                return;
+              }
+              if (summaryAction === "remove") {
+                const currentNames = Array.from(state!.keys());
+                const toKeep = await p.multiselect({
+                  message: t().scan.removePackagesTitle,
+                  options: currentNames.map(name => {
+                    const d = state!.get(name)!;
+                    return {
+                      value: name,
+                      label: `${name}: ${d.pkg.manifest.version} → ${d.newVersion}`,
+                    };
+                  }),
+                  initialValues: currentNames,
+                });
+                if (!p.isCancel(toKeep)) {
+                  const keepSet = new Set(toKeep as string[]);
+                  for (const name of currentNames) {
+                    if (!keepSet.has(name)) state!.delete(name);
+                  }
+                  if (state!.size === 0) {
+                    p.cancel(t().scan.cancelled);
+                    return;
+                  }
+                }
+                continue; // re-show summary with updated state
+              }
+              if (summaryAction === "back") {
+                backToScan = true;
+                break;
+              }
+              // "proceed" → break and fall through to inner loop
+              break;
             }
-            if (summaryAction === "save") {
-              await saveDraft(state);
-              p.outro(t().draft.saved);
-              return;
-            }
-            if (summaryAction === "back") continue;
-            // "proceed" → fall through to inner loop
+            if (backToScan) continue;
           }
         }
         resumeFromDraft = false;

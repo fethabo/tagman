@@ -6,16 +6,17 @@ import type { ReleaseState } from "../../core/checkpoint.js";
 
 export async function showScanSummaryPrompt(
   state: Map<string, ReleaseState>,
-): Promise<"proceed" | "save" | "back" | symbol> {
+): Promise<"proceed" | "save" | "back" | "remove" | symbol> {
   let showDetails = false;
 
   const options = [
     { value: "proceed" as const, label: t().draft.proceed },
     { value: "save"    as const, label: t().draft.save    },
+    { value: "remove"  as const, label: t().scan.removePackages },
     { value: "back"    as const, label: t().draft.goBack  },
   ];
 
-  const prompt = new SelectPrompt<{ value: "proceed" | "save" | "back"; label: string }>({
+  const prompt = new SelectPrompt<{ value: "proceed" | "save" | "back" | "remove"; label: string }>({
     options,
     initialValue: "proceed",
     render() {
@@ -65,6 +66,7 @@ export async function showScanSummaryPrompt(
             `${color.dim("[enter]")} ${color.dim(t().scan.navConfirm)}`,
             `${color.dim("[d]")} ${color.dim(detailsHint)}`,
           ].join(sep);
+
           return `${header}${bar}${items.join(`\n${bar}`)}\n${bar}${hintLine}\n${color.cyan(p.S_BAR_END)}\n`;
         }
       }
@@ -79,5 +81,5 @@ export async function showScanSummaryPrompt(
 
   const result = await (prompt as any).prompt();
   if (p.isCancel(result)) return result as symbol;
-  return result as "proceed" | "save" | "back";
+  return result as "proceed" | "save" | "back" | "remove";
 }

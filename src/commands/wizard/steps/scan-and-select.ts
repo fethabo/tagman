@@ -145,11 +145,9 @@ export async function scanAndSelectPackages(
       message: `${t().scan.selectPackages} ${color.dim(`[${currentBranch}]`)}`,
       options: allCandidates.map(info => ({
         value: info.pkg.manifest.name,
-        label: info.isExtraOnly
-          ? info.pkg.manifest.name
-          : info.isGraduation
-            ? info.pkg.manifest.name
-            : `${info.pkg.manifest.name} (${info.commits.length} commits)`,
+        label: info.isExtraOnly || info.isGraduation
+          ? `${info.pkg.manifest.name} (${info.pkg.manifest.version})`
+          : `${info.pkg.manifest.name} (${info.pkg.manifest.version}) — ${info.commits.length} commits`,
         hint: info.isNoCommits
           ? t().scan.noCommitsHint
           : info.isExtraOnly

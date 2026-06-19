@@ -10,6 +10,7 @@ import { setLocale, t, type Locale } from "../i18n/index.js";
 import { wizardSelect, SELECT_BACK } from "./wizard/wizard-select.js";
 
 const DONE_SENTINEL = "__done__";
+const DESELECT_SENTINEL = "__deselect__";
 
 function groupTagsByPackage(tags: TagInfo[]): Map<string, TagInfo[]> {
   const groups = new Map<string, TagInfo[]>();
@@ -67,13 +68,16 @@ export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof lo
 
   while (true) {
     const packageOptions = packageNames.map((pkg) => {
-      const hasSelection = selectedByPackage.has(pkg);
-      return {
-        value: pkg,
-        label: hasSelection
-          ? `${color.green("✓")} ${pkg}  ${color.dim(`(${t().githubRelease.alreadySelected})`)}`
-          : pkg,
-      };
+      const selectedTag = selectedByPackage.get(pkg);
+      if (selectedTag) {
+        const atIdx = selectedTag.lastIndexOf("@");
+        const version = atIdx !== -1 ? selectedTag.slice(atIdx + 1) : selectedTag;
+        return {
+          value: pkg,
+          label: `${color.green("✓")} ${pkg}  ${color.dim(version)}`,
+        };
+      }
+      return { value: pkg, label: pkg };
     });
 
     const doneLabel = t().githubRelease.doneSelectingTags;
@@ -108,16 +112,16 @@ export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof lo
     }
 
     const tagsForPkg = groups.get(chosenPkg) ?? [];
-    const versionOptions = tagsForPkg.map((tag) => {
+    const versionOptions: { value: string; label: string; hint?: string }[] = [];
+    if (selectedByPackage.has(chosenPkg)) {
+      versionOptions.push({ value: DESELECT_SENTINEL, label: t().githubRelease.deselectTag });
+    }
+    for (const tag of tagsForPkg) {
       const versionMatch = /^.+@(.+)$/.exec(tag.name);
       const version = versionMatch ? versionMatch[1] : tag.name;
       const meta = [tag.date, tag.tagger].filter(Boolean).join(" · ");
-      return {
-        value: tag.name,
-        label: version,
-        hint: meta || undefined,
-      };
-    });
+      versionOptions.push({ value: tag.name, label: version, hint: meta || undefined });
+    }
 
     const versionResult = await wizardSelect<string>(
       t().githubRelease.selectTagVersion(chosenPkg),
@@ -132,6 +136,14 @@ export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof lo
     }
 
     if (versionResult === SELECT_BACK) continue;
+
+    if (versionResult === DESELECT_SENTINEL) {
+      const removedTag = selectedByPackage.get(chosenPkg)!;
+      selectedByPackage.delete(chosenPkg);
+      const idx = selectedTags.indexOf(removedTag);
+      if (idx !== -1) selectedTags.splice(idx, 1);
+      continue;
+    }
 
     const chosenTag = versionResult as string;
     const previousTag = selectedByPackage.get(chosenPkg);

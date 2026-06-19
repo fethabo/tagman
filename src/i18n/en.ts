@@ -31,6 +31,7 @@ export const en: Messages = {
     creating: "Creating GitHub Releases...",
     done: (count) => `${count} GitHub Release(s) created successfully.`,
     failed: (tag, msg) => `GitHub release failed for tag ${tag}: ${msg}`,
+    deselectTag: "Remove from selection",
   },
   checkpoint: {
     uncommittedWarning: "Warning:",
@@ -112,6 +113,9 @@ export const en: Messages = {
     cascadeYes: "Yes",
     cascadeNo: "No",
     progress: (current, total) => `[Package ${current} of ${total}]`,
+    removePackages: "Remove package(s) from selection",
+    removePackagesTitle: "Deselect the packages you want to remove from the release:",
+    removePackagesEmpty: "All packages were removed. Going back to scan.",
   },
   tagMessages: {
     createTagQuestion: (pkg, version) => `Create a Git tag for ${pkg}@${version}?`,
