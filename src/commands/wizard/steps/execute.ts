@@ -204,12 +204,43 @@ export async function executeRelease(
       const pushSpinner = p.spinner();
       pushSpinner.start(t().execute.pushing);
       try {
-        await pushRelease();
+        await pushRelease(ghToken);
         pushSpinner.stop(t().execute.pushDone);
       } catch (e: any) {
         pushSpinner.stop(t().execute.pushSpinnerError);
-        p.log.error(t().execute.pushError(e.message));
-        p.log.warn(t().execute.pushFallback);
+
+        // HTTPS+GitHub without credentials: offer interactive login and retry
+        // the push with the freshly obtained token (write-path auth).
+        let retried = false;
+        if (ghInfo?.protocol === "https" && !ghToken && !yes) {
+          const login = await p.confirm({
+            message: t().execute.pushHttpsLoginPrompt,
+            initialValue: true,
+          });
+          if (!p.isCancel(login) && login) {
+            const loginToken = await interactiveGithubLogin();
+            if (loginToken) {
+              ghToken = loginToken;
+              ghContext = { owner: ghInfo.owner, repo: ghInfo.repo, token: ghToken };
+              const retrySpinner = p.spinner();
+              retrySpinner.start(t().execute.pushRetrying);
+              try {
+                await pushRelease(ghToken);
+                retrySpinner.stop(t().execute.pushDone);
+              } catch (e2: any) {
+                retrySpinner.stop(t().execute.pushSpinnerError);
+                p.log.error(t().execute.pushError(e2.message));
+                p.log.warn(t().execute.pushFallback);
+              }
+              retried = true;
+            }
+          }
+        }
+
+        if (!retried) {
+          p.log.error(t().execute.pushError(e.message));
+          p.log.warn(t().execute.pushFallback);
+        }
       }
     }
   }

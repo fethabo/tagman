@@ -403,6 +403,17 @@ export GITHUB_TOKEN=ghp_yourtoken
 
 The token needs the `repo` scope (or `public_repo` for public repositories) to create releases.
 
+### Remote access requirements
+
+The remote sync check (and the optional push) needs read access to your git remote. tagman supports both transports:
+
+- **SSH** (`git@github.com:owner/repo.git`) — works when your key is loaded in an ssh-agent (or has no passphrase) and the host is in `known_hosts`.
+- **HTTPS** (`https://github.com/owner/repo.git`) — works when a git credential helper has cached credentials, **or** when a GitHub token is available (see [GitHub token](#github-token)). tagman injects the token as an ephemeral HTTP auth header (never written to `.git/config` or disk).
+
+If no credentials are available, tagman **never hangs**: the sync check runs with a timeout and with interactive git prompts disabled, so it fails fast, shows a "could not verify remote" warning, and continues. For the push step over an HTTPS+GitHub remote without credentials, tagman offers an interactive device-flow login and retries.
+
+> **Note:** GitHub removed password authentication for HTTPS git operations in 2021 — an HTTPS remote needs a Personal Access Token (as the password), a credential helper, or the tagman login, not your account password.
+
 #### Use case: Plugin (custom post-release logic)
 
 Create a plugin file at your project root:
@@ -961,6 +972,17 @@ export GITHUB_TOKEN=ghp_tutoken
 ```
 
 El token necesita el scope `repo` (o `public_repo` para repositorios públicos) para crear releases.
+
+### Requisitos de acceso al remoto
+
+La verificación de sincronización remota (y el push opcional) necesita acceso de lectura al remoto git. tagman soporta ambos transportes:
+
+- **SSH** (`git@github.com:owner/repo.git`) — funciona con tu clave cargada en un ssh-agent (o sin passphrase) y el host en `known_hosts`.
+- **HTTPS** (`https://github.com/owner/repo.git`) — funciona con un credential helper de git con credenciales cacheadas, **o** con un token de GitHub disponible (ver [Token de GitHub](#token-de-github)). tagman inyecta el token como header HTTP de autenticación efímero (nunca se escribe en `.git/config` ni en disco).
+
+Si no hay credenciales, tagman **nunca se cuelga**: la verificación corre con un timeout y con los prompts interactivos de git deshabilitados, así que falla rápido, muestra un aviso de "no se pudo verificar el remoto" y continúa. Para el push sobre un remoto HTTPS+GitHub sin credenciales, tagman ofrece un login interactivo por device-flow y reintenta.
+
+> **Nota:** GitHub eliminó la autenticación por contraseña para operaciones git por HTTPS en 2021 — un remoto HTTPS necesita un Personal Access Token (como password), un credential helper, o el login de tagman, no tu contraseña de cuenta.
 
 #### Caso de uso: Plugin (lógica post-release personalizada)
 

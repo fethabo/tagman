@@ -249,7 +249,13 @@ Step 4 (cascade dependency versioning) uses `wizardSelect` with a `[b]` back opt
 If commits exist that are older than the selected range for a package, tagman offers to reorder via git reset + cherry-pick. Only one reorder per release is allowed. All lifted commits must be unpushed. Hashes stored in `ReleaseState.liftCommits`.
 
 ### Remote sync check
-`handleCheckpoint()` calls `getRemoteBehindCount()`. If `requireRemoteSync: true` in config, blocks the release. Otherwise shows a warning and asks for confirmation.
+`handleCheckpoint()` calls `checkRemoteSync(token?)` (in `git/index.ts`), which returns a tri-state `RemoteSyncResult`:
+- `{ status: "verified", behind: N }` — remote reached. If `behind > 0`: blocks when `requireRemoteSync: true`, otherwise warns and asks for confirmation. A missing upstream tracking branch is reported as `verified, behind: 0` (nothing to compare).
+- `{ status: "unverified", reason }` — remote could not be reached (`timeout` | `auth` | `error` | `no-remote`). Shown as a **non-fatal** warning; the flow continues (never silently treated as "in sync").
+
+**No-hang guarantee:** all network git operations (`checkRemoteSync`, `getLatestRemoteStableVersion`, `pushRelease`) run through the `networkGit()` helper — an ephemeral `simpleGit` instance with `timeout: { block }` and `GIT_TERMINAL_PROMPT=0` + SSH `BatchMode=yes` — so a missing credential or unreachable remote fails fast instead of hanging on an interactive prompt.
+
+**HTTPS token auth:** for HTTPS+GitHub remotes, the sync check uses a token only if already resolved via `resolveGithubToken()` (lazy read-path — never forces a device-flow login). The push step, if it fails for lack of credentials, offers `interactiveGithubLogin()` and retries. Tokens are injected as an ephemeral HTTP auth header via `GIT_CONFIG_*` env vars (`http.extraHeader`), never persisted to `.git/config` or the remote URL, and never surfaced in error messages (they live only in the child process env, not command args).
 
 ### Draft saving (issue #24)
 After `scanAndSelectPackages` completes, a summary screen shows the planned changes (package → old version → new version, commit count) and offers three options:

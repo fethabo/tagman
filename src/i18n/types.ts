@@ -45,6 +45,10 @@ export type Messages = {
     behindRemote: (count: number) => string;
     behindQuestion: string;
     behindBlocked: string;
+    remoteUnverified: (reason: string) => string;
+    remoteUnverifiedTimeout: string;
+    remoteUnverifiedAuth: string;
+    remoteUnverifiedError: string;
   };
   scan: {
     scanning: string;
@@ -175,6 +179,8 @@ export type Messages = {
     pushDone: string;
     pushError: (msg: string) => string;
     pushFallback: string;
+    pushHttpsLoginPrompt: string;
+    pushRetrying: string;
     githubCreating: string;
     githubDone: (count: number) => string;
     githubNoToken: string;

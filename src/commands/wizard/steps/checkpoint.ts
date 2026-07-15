@@ -1,6 +1,7 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
-import { hasUncommittedChanges, deleteLocalTag, resetLastCommit, getRemoteBehindCount, git } from "../../../git/index.js";
+import { hasUncommittedChanges, deleteLocalTag, resetLastCommit, checkRemoteSync, getGitHubRemoteInfo, git } from "../../../git/index.js";
+import { resolveGithubToken } from "../../../core/token.js";
 import { t } from "../../../i18n/index.js";
 import { loadCheckpoint, clearCheckpoint, type ReleaseState } from "../../../core/checkpoint.js";
 import { getWorkspacePackages, getDependents } from "../../../core/workspace.js";
@@ -29,19 +30,35 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
     }
   }
 
+  // Lazy read-path auth: only resolve a token (no interactive login) when the
+  // remote is HTTPS+GitHub, so the sync check can authenticate without hanging
+  // and without forcing a device-flow login just for a read-only verification.
+  const ghInfo = await getGitHubRemoteInfo();
+  const syncToken = ghInfo?.protocol === "https"
+    ? await resolveGithubToken(config.github?.token)
+    : null;
+
   const syncSpinner = p.spinner();
   syncSpinner.start(t().checkpoint.fetchingRemote);
-  const behind = await getRemoteBehindCount();
+  const sync = await checkRemoteSync(syncToken);
   syncSpinner.stop("");
 
-  if (behind > 0) {
+  if (sync.status === "unverified") {
+    const reasonMap: Record<typeof sync.reason, string> = {
+      "no-remote": t().checkpoint.remoteUnverifiedError,
+      timeout: t().checkpoint.remoteUnverifiedTimeout,
+      auth: t().checkpoint.remoteUnverifiedAuth,
+      error: t().checkpoint.remoteUnverifiedError,
+    };
+    p.log.warn(t().checkpoint.remoteUnverified(reasonMap[sync.reason]));
+  } else if (sync.behind > 0) {
     if (config.requireRemoteSync) {
-      p.log.error(t().checkpoint.behindRemote(behind));
+      p.log.error(t().checkpoint.behindRemote(sync.behind));
       p.cancel(t().checkpoint.behindBlocked);
       return null;
     }
     const proceed = await p.confirm({
-      message: `${color.yellow(t().checkpoint.behindRemote(behind))} ${t().checkpoint.behindQuestion}`,
+      message: `${color.yellow(t().checkpoint.behindRemote(sync.behind))} ${t().checkpoint.behindQuestion}`,
       initialValue: false,
     });
     if (p.isCancel(proceed) || !proceed) {

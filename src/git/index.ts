@@ -1,7 +1,70 @@
 import { simpleGit, SimpleGit } from "simple-git";
 import semver from "semver";
 
-export const git: SimpleGit = simpleGit();
+/**
+ * Milliseconds of silence (no stdout/stderr) after which simple-git forcibly
+ * kills a git process. Turns an otherwise-eternal network hang (unreachable
+ * remote, VPN, credential prompt) into a rejected promise we can catch.
+ */
+const NETWORK_TIMEOUT_MS = 15000;
+
+export const git: SimpleGit = simpleGit({ timeout: { block: NETWORK_TIMEOUT_MS } });
+
+/**
+ * Builds an ephemeral simple-git instance for network operations (fetch/push).
+ * - Applies the block timeout so the process can never hang forever.
+ * - Sets GIT_TERMINAL_PROMPT=0 so a missing credential fails fast instead of
+ *   blocking on an interactive Username/Password prompt with no stdin.
+ * - Uses SSH BatchMode so an unknown host / passphrase prompt fails fast too.
+ *
+ * A fresh instance (not the shared `git`) is used because `.env()` REPLACES the
+ * child's entire environment; mutating the shared instance would leak this env
+ * into unrelated local operations (git.log, git.status, ...).
+ */
+function networkGit(extraEnv?: Record<string, string>): SimpleGit {
+  return simpleGit({ timeout: { block: NETWORK_TIMEOUT_MS } }).env({
+    ...process.env,
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_SSH_COMMAND: "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+    ...extraEnv,
+  });
+}
+
+/**
+ * Builds the environment that injects a GitHub token as the HTTP Authorization
+ * header for git-over-HTTPS, using git's env-based config (git >= 2.31). This
+ * keeps the token OUT of `ps` args and OUT of `.git/config`/disk — the token
+ * only ever lives in the child process environment.
+ */
+function tokenAuthEnv(token: string): Record<string, string> {
+  const basic = Buffer.from(`x-access-token:${token}`).toString("base64");
+  return {
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "http.extraHeader",
+    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}`,
+  };
+}
+
+/**
+ * Classifies a failed network git operation into a coarse reason, without ever
+ * surfacing the raw token or command. Used to explain why a remote check could
+ * not be completed.
+ */
+function classifyRemoteError(error: unknown): "timeout" | "auth" | "error" {
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (msg.includes("timeout")) return "timeout";
+  if (
+    msg.includes("authentication") ||
+    msg.includes("could not read username") ||
+    msg.includes("could not read password") ||
+    msg.includes("terminal prompts disabled") ||
+    msg.includes("permission denied") ||
+    msg.includes("403")
+  ) {
+    return "auth";
+  }
+  return "error";
+}
 
 export interface CommitInfo {
   hash: string;
@@ -74,10 +137,12 @@ export async function getLastStableTagForPackage(packageName: string): Promise<s
 /**
  * Fetches remote tags and returns the highest stable (non-prerelease) version
  * for a package. Returns null if the remote is unavailable or no stable tag exists.
+ * Uses a network-hardened git (timeout + no interactive prompts) so a missing
+ * credential or unreachable remote fails fast instead of hanging.
  */
-export async function getLatestRemoteStableVersion(packageName: string): Promise<string | null> {
+export async function getLatestRemoteStableVersion(packageName: string, token?: string | null): Promise<string | null> {
   try {
-    await git.fetch(["--tags", "--quiet"]);
+    await networkGit(token ? tokenAuthEnv(token) : undefined).fetch(["--tags", "--quiet"]);
     const tags = await getTagsSortedBySemver(packageName);
     for (const tag of tags) {
       const version = tag.slice(packageName.length + 1);
@@ -221,17 +286,40 @@ export async function resetLastCommit(): Promise<void> {
 }
 
 /**
- * Fetches remote tracking refs and returns how many commits the local branch
- * is behind its upstream. Returns 0 if there is no remote, no tracking branch
- * configured, or the network is unavailable.
+ * Result of checking how far the local branch is behind its upstream.
+ * `verified` means the remote was reached; `unverified` means the check could
+ * not be completed (and must NOT be treated as "in sync" silently).
  */
-export async function getRemoteBehindCount(): Promise<number> {
+export type RemoteSyncResult =
+  | { status: "verified"; behind: number }
+  | { status: "unverified"; reason: "no-remote" | "timeout" | "auth" | "error" };
+
+/**
+ * Fetches remote tracking refs and reports how many commits the local branch is
+ * behind its upstream. Network-hardened: the fetch runs with a timeout and with
+ * interactive prompts disabled, so a missing credential or unreachable remote
+ * returns `unverified` instead of hanging forever.
+ *
+ * When a token is supplied it is injected for HTTPS auth; the caller decides
+ * whether to pass one (lazy read: only if already available, never prompt).
+ *
+ * A missing upstream tracking branch (fetch succeeds, `@{u}` unresolved) is
+ * reported as `verified` with `behind: 0` — there is nothing to be behind of,
+ * matching the previous non-noisy behavior for local-only branches.
+ */
+export async function checkRemoteSync(token?: string | null): Promise<RemoteSyncResult> {
   try {
-    await git.fetch(["--quiet", "--no-tags"]);
+    await networkGit(token ? tokenAuthEnv(token) : undefined).fetch(["--quiet", "--no-tags"]);
+  } catch (error) {
+    return { status: "unverified", reason: classifyRemoteError(error) };
+  }
+
+  try {
     const raw = await git.raw(["rev-list", "--count", "HEAD..@{u}"]);
-    return parseInt(raw.trim(), 10) || 0;
+    return { status: "verified", behind: parseInt(raw.trim(), 10) || 0 };
   } catch {
-    return 0;
+    // No upstream tracking branch configured — nothing to compare against.
+    return { status: "verified", behind: 0 };
   }
 }
 
@@ -258,11 +346,15 @@ export async function getCurrentBranch(): Promise<string> {
 }
 
 /**
- * Push the current branch and all tags to origin.
+ * Push the current branch and all tags to origin. Network-hardened so it fails
+ * fast (instead of hanging on a credential prompt) when auth is missing.
+ * An optional GitHub token is injected for HTTPS remotes; SSH remotes and
+ * remotes with a working credential helper ignore it.
  */
-export async function pushRelease(): Promise<void> {
+export async function pushRelease(token?: string | null): Promise<void> {
   const branch = await git.branch();
-  await git.push("origin", branch.current, ["--follow-tags"]);
+  await networkGit(token ? tokenAuthEnv(token) : undefined)
+    .push("origin", branch.current, ["--follow-tags"]);
 }
 
 /**
@@ -319,22 +411,30 @@ export async function getTagAnnotation(tagName: string): Promise<string> {
   }
 }
 
+export interface GitHubRemoteInfo {
+  owner: string;
+  repo: string;
+  /** Transport used by the origin remote — determines whether token-based
+   * HTTPS auth applies (only meaningful for "https"). */
+  protocol: "https" | "ssh";
+}
+
 /**
- * Parse the GitHub owner and repo from the origin remote URL.
+ * Parse the GitHub owner, repo and transport from the origin remote URL.
  * Supports HTTPS (https://github.com/owner/repo.git) and SSH (git@github.com:owner/repo.git).
  * Returns null if origin is not a GitHub remote or cannot be parsed.
  */
-export async function getGitHubRemoteInfo(): Promise<{ owner: string; repo: string } | null> {
+export async function getGitHubRemoteInfo(): Promise<GitHubRemoteInfo | null> {
   try {
     const remotes = await git.getRemotes(true);
     const origin = remotes.find(r => r.name === "origin");
     const url = origin?.refs?.fetch ?? "";
 
     const https = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/);
-    if (https) return { owner: https[1], repo: https[2] };
+    if (https) return { owner: https[1], repo: https[2], protocol: "https" };
 
     const ssh = url.match(/git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/);
-    if (ssh) return { owner: ssh[1], repo: ssh[2] };
+    if (ssh) return { owner: ssh[1], repo: ssh[2], protocol: "ssh" };
 
     return null;
   } catch {
