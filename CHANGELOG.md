@@ -199,3 +199,7 @@
 * **fix:** corregida visualizacion de versiones en el pick de packages del releaser y el taguer, agregada opcion de desmarcar un package en ambos flujos @fethabo fd61a50
 * **fix:** corregida visualizacion de listado de tags para release en releaser. fixes [#64](https://github.com/fethabo/tagman/issues/64) @fethabo 2fefc69
 * **fix:** corregido bug de historial en graduation. fixes [#67](https://github.com/fethabo/tagman/issues/67) @fethabo 95cd40c
+
+## [1.4.6](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.5...@fethabo/tagman@1.4.6) (2026-07-15)
+
+* **fix:** modificado criterio de uso de auth con https, se aprovecha flujo de autenticacion ya disponible en releaser. Se ataja error de auth que impedia continuar al verificar cambios remoto sin credenciales en un repo clonado con https @fethabo d45e397
