@@ -40,6 +40,7 @@ export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof lo
     }
 
     if (!token) {
+      p.log.warn(t().githubRelease.abortedNoToken);
       return;
     }
   }

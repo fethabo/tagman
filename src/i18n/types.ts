@@ -30,6 +30,7 @@ export type Messages = {
     done: (count: number) => string;
     failed: (tag: string, msg: string) => string;
     deselectTag: string;
+    abortedNoToken: string;
   };
   checkpoint: {
     uncommittedWarning: string;
@@ -203,5 +204,6 @@ export type Messages = {
     githubDeviceLoginPrompt: string;
     githubDeviceLoginInstructions: (url: string, code: string) => string;
     githubDeviceLoginSuccess: string;
+    githubDeviceLoginFailed: (msg: string) => string;
   };
 };

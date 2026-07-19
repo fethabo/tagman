@@ -5,7 +5,7 @@ import color from "picocolors";
 import { wizardCommand } from "./commands/wizard.js";
 import { githubReleaseCommand } from "./commands/github-release.js";
 import { showMainMenu } from "./commands/menu.js";
-import { setLocale, type Locale } from "./i18n/index.js";
+import { setLocale, t, type Locale } from "./i18n/index.js";
 import { VERSION } from "./version.js";
 
 const program = new Command();
@@ -23,7 +23,12 @@ program
     console.clear();
     p.intro(`${color.bgCyan(color.black(" tagman "))} Releaser ${color.dim("v" + VERSION)}`);
 
-    await showMainMenu();
+    try {
+      await showMainMenu();
+    } catch (err: any) {
+      p.log.error(err.message);
+      p.outro(t().wizard.error);
+    }
   });
 
 program.addCommand(wizardCommand);

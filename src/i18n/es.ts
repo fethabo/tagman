@@ -32,6 +32,7 @@ export const es: Messages = {
     done: (count) => `${count} GitHub Release(s) creados correctamente.`,
     failed: (tag, msg) => `GitHub release falló para el tag ${tag}: ${msg}`,
     deselectTag: "Quitar de la selección",
+    abortedNoToken: "No se puede continuar sin un token de GitHub. Configurá GITHUB_TOKEN o reintentá el inicio de sesión.",
   },
   checkpoint: {
     uncommittedWarning: "Advertencia:",
@@ -209,5 +210,6 @@ export const es: Messages = {
     githubDeviceLoginPrompt: "No se encontró token de GitHub. ¿Querés iniciar sesión por única vez via navegador para crear el release? (El token no se guardará)",
     githubDeviceLoginInstructions: (url, code) => `Por favor abrí ${url} e ingresá el código: ${code}`,
     githubDeviceLoginSuccess: "Sesión de GitHub iniciada exitosamente.",
+    githubDeviceLoginFailed: (msg) => `Falló el inicio de sesión con GitHub: ${msg}`,
   },
 };

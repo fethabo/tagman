@@ -21,6 +21,8 @@ export async function interactiveGithubLogin(): Promise<string | null> {
     p.log.success(t().execute.githubDeviceLoginSuccess);
     return result.token;
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    p.log.error(t().execute.githubDeviceLoginFailed(msg));
     return null;
   }
 }

@@ -29,19 +29,24 @@ export async function showMainMenu(wizardOptions: Partial<WizardOptions> = {}): 
     return;
   }
 
-  if (action === "release") {
-    await runWizardFlow({
-      dryRun: false,
-      json: false,
-      push: false,
-      yes: false,
-      ...wizardOptions,
-    });
-    return;
-  }
+  try {
+    if (action === "release") {
+      await runWizardFlow({
+        dryRun: false,
+        json: false,
+        push: false,
+        yes: false,
+        ...wizardOptions,
+      });
+      return;
+    }
 
-  if (action === "github") {
-    await runGithubReleaseFlow();
-    p.outro(t().wizard.bye);
+    if (action === "github") {
+      await runGithubReleaseFlow();
+      p.outro(t().wizard.bye);
+    }
+  } catch (err: any) {
+    p.log.error(err.message);
+    p.outro(t().wizard.error);
   }
 }
