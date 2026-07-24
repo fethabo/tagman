@@ -164,6 +164,12 @@ export const es: Messages = {
     saved: "Borrador guardado. Podés retomarlo la próxima vez que ejecutés tagman.",
     detailsShow: "ver commits",
     detailsHide: "ocultar commits",
+    staleTitle: "Verificación del borrador",
+    blockedReorderStale: "El borrador incluye un reordenamiento de commits, pero el HEAD del repositorio cambió desde que se guardó. El reorden ya no es aplicable de forma segura: solo se puede descartar.",
+    blockedVersionChanged: (pkg) => `La versión de "${pkg}" cambió desde que se guardó el borrador; el bump planificado ya no es válido.`,
+    warnNewCommits: "Hay commits nuevos desde que se guardó el borrador que no forman parte del plan.",
+    warnBranchDiff: (saved, current) => `El borrador se guardó en la rama "${saved}"; ahora estás en "${current}".`,
+    warnUnverifiable: "No se puede verificar la vigencia de este borrador (fue guardado por una versión anterior de tagman).",
   },
   execute: {
     confirmProceed: "Todo listo. ¿Proceder con la escritura, commits y tags?",

@@ -6,17 +6,24 @@ import type { ReleaseState } from "../../core/checkpoint.js";
 
 export async function showDraftResumePrompt(
   draftState: Map<string, ReleaseState>,
+  validation?: { blockers: string[]; warnings: string[] },
 ): Promise<"resume" | "discard" | symbol> {
   let showDetails = false;
 
-  const options = [
-    { value: "resume" as const,  label: t().draft.resume  },
-    { value: "discard" as const, label: t().draft.discard },
-  ];
+  const blockers = validation?.blockers ?? [];
+  const warnings = validation?.warnings ?? [];
+  const blocked = blockers.length > 0;
+
+  const options = blocked
+    ? [{ value: "discard" as const, label: t().draft.discard }]
+    : [
+        { value: "resume" as const,  label: t().draft.resume  },
+        { value: "discard" as const, label: t().draft.discard },
+      ];
 
   const prompt = new SelectPrompt<{ value: "resume" | "discard"; label: string }>({
     options,
-    initialValue: "resume",
+    initialValue: blocked ? "discard" : "resume",
     render() {
       const cursor: number = (this as any).cursor;
       const bar  = `${color.cyan(p.S_BAR)}  `;
@@ -33,13 +40,24 @@ export async function showDraftResumePrompt(
         })
         .join('\n');
 
+      // Validation notes: blockers (red) + warnings (yellow), under a title.
+      let staleBlock = '';
+      if (blockers.length > 0 || warnings.length > 0) {
+        const noteLines = [
+          `${gBar}${color.bold(t().draft.staleTitle)}`,
+          ...blockers.map(b => `${gBar}${color.red('✗')} ${color.red(b)}`),
+          ...warnings.map(w => `${gBar}${color.yellow('!')} ${color.yellow(w)}`),
+        ].join('\n');
+        staleBlock = `${color.gray(p.S_BAR)}\n${noteLines}\n`;
+      }
+
       const msgLine = wrapTextWithPrefix(
         process.stdout,
         t().draft.resumeQuestion,
         `${p.symbolBar(this.state)}  `,
         `${p.symbol(this.state)}  `,
       );
-      const header = `${color.gray(p.S_BAR)}\n${gBar}${color.bold(t().draft.summaryTitle)}\n${summaryLines}\n${color.gray(p.S_BAR)}\n${color.gray(p.S_BAR)}  ${msgLine}\n`;
+      const header = `${color.gray(p.S_BAR)}\n${gBar}${color.bold(t().draft.summaryTitle)}\n${summaryLines}\n${staleBlock}${color.gray(p.S_BAR)}\n${color.gray(p.S_BAR)}  ${msgLine}\n`;
       const rowCount = header.split('\n').length;
 
       const style = (opt: { value: string; label: string }, active: boolean) => {

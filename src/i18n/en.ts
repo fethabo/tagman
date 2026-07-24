@@ -164,6 +164,12 @@ export const en: Messages = {
     saved: "Draft saved. You can resume it next time you run tagman.",
     detailsShow: "show commits",
     detailsHide: "hide commits",
+    staleTitle: "Draft verification",
+    blockedReorderStale: "The draft includes a commit reorder, but the repository HEAD changed since it was saved. The reorder is no longer safe to apply: it can only be discarded.",
+    blockedVersionChanged: (pkg) => `The version of "${pkg}" changed since the draft was saved; the planned bump is no longer valid.`,
+    warnNewCommits: "There are new commits since the draft was saved that are not part of the plan.",
+    warnBranchDiff: (saved, current) => `The draft was saved on branch "${saved}"; you are now on "${current}".`,
+    warnUnverifiable: "This draft's validity cannot be verified (it was saved by an older version of tagman).",
   },
   execute: {
     confirmProceed: "All set. Proceed with writing, commits and tags?",

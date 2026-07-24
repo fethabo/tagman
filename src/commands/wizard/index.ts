@@ -8,7 +8,9 @@ import { scanAndSelectPackages } from "./steps/scan-and-select.js";
 import { promptTagMessages } from "./steps/tag-messages.js";
 import { executeRelease } from "./steps/execute.js";
 import { runGithubReleaseFlow } from "../github-release.js";
-import { hasDraft, loadDraft, saveDraft, clearDraft } from "../../core/draft.js";
+import { hasDraft, loadDraft, saveDraft, clearDraft, type DraftContext } from "../../core/draft.js";
+import { getHeadHash, getCurrentBranch } from "../../git/index.js";
+import type { ReleaseState } from "../../core/checkpoint.js";
 import { showDraftResumePrompt } from "./draft-resume-prompt.js";
 import { showScanSummaryPrompt } from "./scan-summary-prompt.js";
 import { setLocale, t, type Locale } from "../../i18n/index.js";
@@ -22,6 +24,64 @@ export type WizardOptions = {
   push: boolean;
   yes: boolean;
 };
+
+/**
+ * Validate a saved draft against the current repo state, classifying changes by
+ * the severity of their consequence: blockers make resume unsafe (destructive
+ * reorder against a moved HEAD, or a stale base version that invalidates the
+ * computed bump), warnings are executable-but-noteworthy (HEAD advanced without
+ * a reorder, different branch). Drafts without a validity context (saved by an
+ * older version) are unverifiable: warned, and blocked only if they carry a
+ * reorder. Pure function — no side effects.
+ */
+export function validateDraft(
+  draft: { state: Map<string, ReleaseState>; context?: DraftContext },
+  pkgs: WorkspacePackage[],
+  currentHead: string,
+  currentBranch: string,
+): { blockers: string[]; warnings: string[] } {
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+
+  const hasLift = Array.from(draft.state.values()).some(
+    (s) => Array.isArray(s.liftCommits) && s.liftCommits.length > 0,
+  );
+
+  if (!draft.context) {
+    warnings.push(t().draft.warnUnverifiable);
+    if (hasLift) blockers.push(t().draft.blockedReorderStale);
+    return { blockers, warnings };
+  }
+
+  const headMoved = draft.context.head !== currentHead;
+
+  // Destructive: a planned reorder runs `git reset --hard HEAD~N`; a moved HEAD
+  // would delete the wrong commits.
+  if (hasLift && headMoved) {
+    blockers.push(t().draft.blockedReorderStale);
+  }
+
+  // Base version drift invalidates the computed bump for that package.
+  const currentVersionByName = new Map(pkgs.map((pkg) => [pkg.manifest.name, pkg.manifest.version]));
+  for (const [name, savedVersion] of Object.entries(draft.context.versions)) {
+    const current = currentVersionByName.get(name);
+    if (current !== undefined && current !== savedVersion) {
+      blockers.push(t().draft.blockedVersionChanged(name));
+    }
+  }
+
+  // Non-blocking: HEAD advanced without a reorder in the plan.
+  if (headMoved && !hasLift) {
+    warnings.push(t().draft.warnNewCommits);
+  }
+
+  // Non-blocking: saved on a different branch.
+  if (draft.context.branch !== currentBranch) {
+    warnings.push(t().draft.warnBranchDiff(draft.context.branch, currentBranch));
+  }
+
+  return { blockers, warnings };
+}
 
 /**
  * Core wizard flow — can be called directly from the main menu or from the
@@ -56,7 +116,9 @@ export async function runWizardFlow(
         if (draftData) {
           const dateStr = new Date(draftData.savedAt).toLocaleString();
           p.log.info(t().draft.found(dateStr));
-          const draftAction = await showDraftResumePrompt(draftData.state);
+          const [currentHead, currentBranch] = await Promise.all([getHeadHash(), getCurrentBranch()]);
+          const validation = validateDraft(draftData, pkgs, currentHead, currentBranch);
+          const draftAction = await showDraftResumePrompt(draftData.state, validation);
           if (p.isCancel(draftAction)) {
             p.cancel(t().scan.cancelled);
             return;
@@ -113,7 +175,8 @@ export async function runWizardFlow(
                 return;
               }
               if (summaryAction === "save") {
-                await saveDraft(state!);
+                const [head, branch] = await Promise.all([getHeadHash(), getCurrentBranch()]);
+                await saveDraft(state!, { head, branch });
                 p.outro(t().draft.saved);
                 return;
               }

@@ -346,6 +346,13 @@ export async function getCurrentBranch(): Promise<string> {
 }
 
 /**
+ * Return the full SHA of the current HEAD commit.
+ */
+export async function getHeadHash(): Promise<string> {
+  return (await git.revparse(["HEAD"])).trim();
+}
+
+/**
  * Push the current branch and all tags to origin. Network-hardened so it fails
  * fast (instead of hanging on a credential prompt) when auth is missing.
  * An optional GitHub token is injected for HTTPS remotes; SSH remotes and

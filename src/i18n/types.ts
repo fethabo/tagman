@@ -158,6 +158,12 @@ export type Messages = {
     saved: string;
     detailsShow: string;
     detailsHide: string;
+    staleTitle: string;
+    blockedReorderStale: string;
+    blockedVersionChanged: (pkg: string) => string;
+    warnNewCommits: string;
+    warnBranchDiff: (saved: string, current: string) => string;
+    warnUnverifiable: string;
   };
   execute: {
     confirmProceed: string;
