@@ -3,7 +3,7 @@ import color from "picocolors";
 import { hasUncommittedChanges, deleteLocalTag, resetLastCommit, checkRemoteSync, getGitHubRemoteInfo, git } from "../../../git/index.js";
 import { resolveGithubToken } from "../../../core/token.js";
 import { t } from "../../../i18n/index.js";
-import { loadCheckpoint, clearCheckpoint, type ReleaseState } from "../../../core/checkpoint.js";
+import { loadCheckpoint, clearCheckpoint, buildReleaseCommitMessage, type ReleaseState } from "../../../core/checkpoint.js";
 import { getWorkspacePackages, getDependents } from "../../../core/workspace.js";
 import {
   rollbackPackageVersion,
@@ -97,44 +97,62 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
         const rbSpinner = p.spinner();
         rbSpinner.start(t().checkpoint.rollingBack);
 
-        const currentWorkspace = await getWorkspacePackages(process.cwd(), config);
         const rbState = new Map(checkpoint.state);
 
-        for (const [pkgName, details] of rbState.entries()) {
-          try {
-            await rollbackPackageVersion(details.pkg.dir, details.pkg.manifest.version);
-            await rollbackChangelog(details.pkg.dir, details.newVersion);
-
-            const dependents = getDependents(pkgName, currentWorkspace);
-            for (const dep of dependents) {
-              if (rbState.has(dep.manifest.name)) {
-                await rollbackConsumerDependencies(dep.dir, pkgName, details.pkg.manifest.version);
-              }
-            }
-          } catch {
-            // Ignore errors as files could be locally modified
+        if (checkpoint.origHead) {
+          // Reorder release: the `reset --hard HEAD~N` already ran, so a
+          // file-by-file rollback would lose the reordered commits. Delete any
+          // partially-created tags, then hard-reset to the original HEAD — this
+          // restores the reordered commits and discards all writes in one step.
+          for (const [pkgName, details] of rbState.entries()) {
+            const tagName = config.tagName === "version-only"
+              ? details.newVersion
+              : `${pkgName}@${details.newVersion}`;
+            try { await deleteLocalTag(tagName); } catch { /* el tag puede no existir */ }
           }
-        }
-
-        // Si el checkpoint es "committing", el commit de git pudo haberse creado
-        if (checkpoint.step === "committing") {
           try {
-            // Verificar que el último commit sea el de tagman antes de resetearlo
-            const log = await git.log(["-1"]);
-            const pkgsArray = Array.from(rbState.keys());
-            const expectedMsg = `chore(release): [${pkgsArray.join(", ")}]`;
-            if (log.latest?.message === expectedMsg) {
-              await resetLastCommit();
-            }
-            // Eliminar tags que pudieron haberse creado parcialmente
-            for (const [pkgName, details] of rbState.entries()) {
-              const tagName = config.tagName === "version-only"
-                ? details.newVersion
-                : `${pkgName}@${details.newVersion}`;
-              try { await deleteLocalTag(tagName); } catch { /* el tag puede no existir */ }
-            }
+            await git.raw(["reset", "--hard", checkpoint.origHead]);
           } catch {
             p.log.warn(t().checkpoint.rollbackGitWarn);
+          }
+        } else {
+          const currentWorkspace = await getWorkspacePackages(process.cwd(), config);
+
+          for (const [pkgName, details] of rbState.entries()) {
+            try {
+              await rollbackPackageVersion(details.pkg.dir, details.pkg.manifest.version);
+              await rollbackChangelog(details.pkg.dir, details.newVersion);
+
+              const dependents = getDependents(pkgName, currentWorkspace);
+              for (const dep of dependents) {
+                if (rbState.has(dep.manifest.name)) {
+                  await rollbackConsumerDependencies(dep.dir, pkgName, details.pkg.manifest.version);
+                }
+              }
+            } catch {
+              // Ignore errors as files could be locally modified
+            }
+          }
+
+          // Si el checkpoint es "committing", el commit de git pudo haberse creado
+          if (checkpoint.step === "committing") {
+            try {
+              // Verificar que el último commit sea el de tagman antes de resetearlo
+              const log = await git.log(["-1"]);
+              const expectedMsg = buildReleaseCommitMessage(rbState);
+              if (log.latest?.message === expectedMsg) {
+                await resetLastCommit();
+              }
+              // Eliminar tags que pudieron haberse creado parcialmente
+              for (const [pkgName, details] of rbState.entries()) {
+                const tagName = config.tagName === "version-only"
+                  ? details.newVersion
+                  : `${pkgName}@${details.newVersion}`;
+                try { await deleteLocalTag(tagName); } catch { /* el tag puede no existir */ }
+              }
+            } catch {
+              p.log.warn(t().checkpoint.rollbackGitWarn);
+            }
           }
         }
 

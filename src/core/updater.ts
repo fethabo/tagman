@@ -247,7 +247,9 @@ export async function rollbackChangelog(pkgDir: string, versionToRemove: string)
   const changelogPath = path.join(pkgDir, "CHANGELOG.md");
   try {
     const content = await fs.readFile(changelogPath, "utf-8");
-    const searchString = `\n## [${versionToRemove}] - `;
+    // Match the real header format written by appendToChangelog:
+    // `## [<version>](<compareLinkUrl>) (<date>)`
+    const searchString = `\n## [${versionToRemove}](`;
     const index = content.lastIndexOf(searchString);
     
     if (index !== -1) {

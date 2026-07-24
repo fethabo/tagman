@@ -7,12 +7,12 @@ import {
   appendToChangelog,
   logRelease,
 } from "../../../core/updater.js";
-import { createReleaseCommit, createAnnotatedTag, deleteLocalTag, resetLastCommit, pushRelease, getGitHubRemoteInfo, git } from "../../../git/index.js";
+import { createReleaseCommit, createAnnotatedTag, deleteLocalTag, resetLastCommit, pushRelease, getGitHubRemoteInfo, tagExists, git } from "../../../git/index.js";
 import { resolveGithubToken } from "../../../core/token.js";
 import { createGithubRelease, interactiveGithubLogin } from "../../../integrations/github.js";
 import { publishPackage } from "../../../integrations/npm.js";
 import { runAfterRelease, type ReleaseResult } from "../../../plugins/index.js";
-import { saveCheckpoint, clearCheckpoint, type ReleaseState } from "../../../core/checkpoint.js";
+import { saveCheckpoint, clearCheckpoint, loadCheckpoint, buildReleaseCommitMessage, type ReleaseState } from "../../../core/checkpoint.js";
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
 import type { TagmanConfig } from "../../../config.js";
 import { t } from "../../../i18n/index.js";
@@ -68,6 +68,14 @@ export async function executeRelease(
 
   let origHead: string | null = null;
 
+  // On the recovery path the `reset --hard` already ran before the crash; the
+  // reorder's original HEAD lives in the checkpoint. Rehydrate it so a failed
+  // cherry-pick during resume can still roll back to it.
+  if (isRecovered) {
+    const cp = await loadCheckpoint();
+    if (cp?.origHead) origHead = cp.origHead;
+  }
+
   if (!isRecovered) {
     if (!yes) {
       const execute = await wizardSelect(
@@ -93,7 +101,7 @@ export async function executeRelease(
       await git.raw(["reset", "--hard", `HEAD~${dedupedLift.length}`]);
     }
 
-    await saveCheckpoint("writing", state);
+    await saveCheckpoint("writing", state, origHead ?? undefined);
   }
 
   if (!isRecovered || recoveredStep === "writing") {
@@ -123,23 +131,25 @@ export async function executeRelease(
 
     await logRelease(releasedLog);
     writingSpinner.stop(t().execute.writingDone);
-    await saveCheckpoint("committing", state);
+    await saveCheckpoint("committing", state, origHead ?? undefined);
   }
 
   const commitSpinner = p.spinner();
   commitSpinner.start(t().execute.committing);
 
-  const pkgsArray = Array.from(state.keys());
-  const preReleaseBumps = new Set<ReleaseState["bump"]>(["premajor", "preminor", "prepatch", "prerelease"]);
-  const isPreRelease = Array.from(state.values()).some(d => preReleaseBumps.has(d.bump));
-  const commitMsg = `chore(${isPreRelease ? "pre-release" : "release"}): [${pkgsArray.join(", ")}]`;
+  const commitMsg = buildReleaseCommitMessage(state);
 
   const filesToCommit = Array.from(state.values()).flatMap(d => [
     path.join(d.pkg.dir, "package.json"),
     path.join(d.pkg.dir, "CHANGELOG.md"),
   ]);
 
-  await createReleaseCommit(filesToCommit, commitMsg);
+  // Idempotent resume: if the release commit already exists at HEAD (crash after
+  // committing), skip re-committing instead of failing with "nothing to commit".
+  const lastLog = await git.log(["-1"]).catch(() => null);
+  if (lastLog?.latest?.message !== commitMsg) {
+    await createReleaseCommit(filesToCommit, commitMsg);
+  }
 
   const createdTags: string[] = [];
   try {
@@ -148,7 +158,10 @@ export async function executeRelease(
         const tagName = config.tagName === "version-only"
           ? details.newVersion
           : `${pkgName}@${details.newVersion}`;
-        await createAnnotatedTag(tagName, details.tagMessage);
+        // Idempotent resume: skip tags already created before the crash.
+        if (!(await tagExists(tagName))) {
+          await createAnnotatedTag(tagName, details.tagMessage);
+        }
         createdTags.push(tagName);
       }
     }

@@ -279,6 +279,14 @@ export async function deleteLocalTag(tagName: string): Promise<void> {
 }
 
 /**
+ * Return true if a local tag with the given name already exists.
+ */
+export async function tagExists(tagName: string): Promise<boolean> {
+  const out = await git.tag(["-l", tagName]);
+  return out.trim().length > 0;
+}
+
+/**
  * Undo the last commit, keeping changes in the working tree (--mixed).
  */
 export async function resetLastCommit(): Promise<void> {
