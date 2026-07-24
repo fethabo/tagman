@@ -6,6 +6,14 @@ export const es: Messages = {
     bye: "¡Hasta luego!",
     error: "Ocurrió un error.",
   },
+  workspace: {
+    undeclaredPackages: (filePath) => `${filePath} no declara "packages", así que se trata este repositorio como un paquete único. Si esperabas un monorepo, revisá esa clave en el archivo.`,
+    invalidPackageJson: (filePath) => `No se pudo leer el package.json de ${filePath}. Ese paquete se omite.`,
+  },
+  schemaError: {
+    header: (filePath) => `Contenido inválido en ${filePath}:`,
+    rootField: "(raíz)",
+  },
   menu: {
     question: "¿Qué querés hacer?",
     createRelease: "Nueva versión",

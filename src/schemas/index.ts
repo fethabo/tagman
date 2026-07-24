@@ -12,8 +12,11 @@ export const packageJsonSchema = z.object({
 
 export type PackageJson = z.infer<typeof packageJsonSchema>;
 
+// pnpm 10 turned pnpm-workspace.yaml into the general settings file
+// (allowBuilds, onlyBuiltDependencies, catalog, ...), so `packages` is optional
+// and unknown keys must survive the parse.
 export const pnpmWorkspaceSchema = z.object({
-  packages: z.array(z.string()),
-});
+  packages: z.array(z.string()).optional(),
+}).passthrough();
 
 export type PnpmWorkspace = z.infer<typeof pnpmWorkspaceSchema>;

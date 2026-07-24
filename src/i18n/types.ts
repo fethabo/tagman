@@ -4,6 +4,14 @@ export type Messages = {
     bye: string;
     error: string;
   };
+  workspace: {
+    undeclaredPackages: (filePath: string) => string;
+    invalidPackageJson: (filePath: string) => string;
+  };
+  schemaError: {
+    header: (filePath: string) => string;
+    rootField: string;
+  };
   menu: {
     question: string;
     createRelease: string;
