@@ -24,11 +24,11 @@
 
 ## 5. Verificación manual
 
-- [ ] 5.1 Crear un borrador con 2+ paquetes (ejecutar `pnpm dev`, seleccionar paquetes y commits, guardar borrador)
-- [ ] 5.2 Ejecutar `pnpm dev` de nuevo y verificar que el prompt de retoma muestra los paquetes sin commits por defecto
-- [ ] 5.3 Presionar `d` y verificar que aparecen los commits de cada paquete con hash truncado y mensaje
-- [ ] 5.4 Presionar `d` nuevamente y verificar que los commits se ocultan
-- [ ] 5.5 Verificar que "Retomar" y "Descartar" funcionan correctamente con ambos estados del toggle
-- [ ] 5.6 Verificar que el hint `[d]` cambia entre "ver commits" y "ocultar commits"
+- [x] 5.1 Crear un borrador con 2+ paquetes (ejecutar `pnpm dev`, seleccionar paquetes y commits, guardar borrador)
+- [x] 5.2 Ejecutar `pnpm dev` de nuevo y verificar que el prompt de retoma muestra los paquetes sin commits por defecto
+- [x] 5.3 Presionar `d` y verificar que aparecen los commits de cada paquete con hash truncado y mensaje
+- [x] 5.4 Presionar `d` nuevamente y verificar que los commits se ocultan
+- [x] 5.5 Verificar que "Retomar" y "Descartar" funcionan correctamente con ambos estados del toggle
+- [x] 5.6 Verificar que el hint `[d]` cambia entre "ver commits" y "ocultar commits"
 
 <!-- Tareas 5.1–5.6 requieren verificación manual interactiva -->

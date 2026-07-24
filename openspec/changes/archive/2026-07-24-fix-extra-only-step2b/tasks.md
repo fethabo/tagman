@@ -9,6 +9,6 @@
 ## 3. Verificación
 
 - [x] 3.1 Verificar compilación TypeScript sin errores (`npx tsc --noEmit`)
-- [ ] 3.2 Verificar fix 1: en modo headless (`pnpm dev release --packages <extraOnlyPkg> --bump patch --yes`), confirmar que la release incluye los commits globales en el CHANGELOG y tag message
-- [ ] 3.3 Verificar fix 2: en modo interactivo, seleccionar un paquete `isExtraOnly` y confirmar que step 2b muestra los commits extra pre-seleccionados
-- [ ] 3.4 Verificar no-regresión: paquetes con commits de ruta propios siguen mostrando step 2b con `initialValues` vacío
+- [x] 3.2 Verificar fix 1: en modo headless (`pnpm dev release --packages <extraOnlyPkg> --bump patch --yes`), confirmar que la release incluye los commits globales en el CHANGELOG y tag message
+- [x] 3.3 Verificar fix 2: en modo interactivo, seleccionar un paquete `isExtraOnly` y confirmar que step 2b muestra los commits extra pre-seleccionados
+- [x] 3.4 Verificar no-regresión: paquetes con commits de ruta propios siguen mostrando step 2b con `initialValues` vacío
