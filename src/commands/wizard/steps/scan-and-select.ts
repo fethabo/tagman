@@ -270,21 +270,28 @@ export async function scanAndSelectPackages(
             );
 
             if (selectedPathCommits.length === 0 && isCurrentPrerelease) {
-              const liftRaw = await git.raw(["log", "--format=%H", `${pkgInfo.lastTag}..HEAD`]);
-              const computedLiftCommits = liftRaw.trim().split("\n").filter(Boolean).reverse();
+              // A pre-release manifest with no tags has no `lastTag..HEAD` range
+              // to reorder: skip the lift computation (no reorder possible) and
+              // go straight to the graduation question, avoiding a `null..HEAD`
+              // invalid git range.
+              let computedLiftCommits: string[] = [];
+              if (pkgInfo.lastTag !== null) {
+                const liftRaw = await git.raw(["log", "--format=%H", `${pkgInfo.lastTag}..HEAD`]);
+                computedLiftCommits = liftRaw.trim().split("\n").filter(Boolean).reverse();
 
-              const notPushed = await getNotPushedHashes(currentBranch);
-              const allLiftNotPushed = notPushed === null || computedLiftCommits.every(h => notPushed.has(h));
+                const notPushed = await getNotPushedHashes(currentBranch);
+                const allLiftNotPushed = notPushed === null || computedLiftCommits.every(h => notPushed.has(h));
 
-              if (!allLiftNotPushed) {
-                p.log.warn(t().scan.graduationBlockedPushed);
-                goBackToCommits = true;
-                continue;
-              }
-              if (hasReorder) {
-                p.log.warn(t().scan.graduationBlockedReorder);
-                goBackToCommits = true;
-                continue;
+                if (!allLiftNotPushed) {
+                  p.log.warn(t().scan.graduationBlockedPushed);
+                  goBackToCommits = true;
+                  continue;
+                }
+                if (hasReorder) {
+                  p.log.warn(t().scan.graduationBlockedReorder);
+                  goBackToCommits = true;
+                  continue;
+                }
               }
 
               const confirm = await p.confirm({
@@ -553,7 +560,7 @@ export async function scanAndSelectPackages(
 
         const remoteSpinner = p.spinner();
         remoteSpinner.start(t().scan.graduationCheckingRemote);
-        const latestRemoteStable = await getLatestRemoteStableVersion(pkgName);
+        const latestRemoteStable = await getLatestRemoteStableVersion(pkgName, ghToken);
         remoteSpinner.stop("");
 
         if (latestRemoteStable && semver.gte(latestRemoteStable, newVersion)) {

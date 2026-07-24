@@ -26,8 +26,10 @@ export function suggestBump(commits: string[]): SemverBump {
     const parsed = parseCommitMessage(commitMsg);
     const msgUpper = commitMsg.toUpperCase();
 
-    // Breaking changes
-    if (parsed.notes.some(note => note.title.toUpperCase() === "BREAKING CHANGE") || commitMsg.includes("!:") || msgUpper.includes("BREAKING CHANGE")) {
+    // Breaking changes: a `!` only counts when it belongs to a conventional
+    // header (`type!:` or `type(scope)!:`), not any incidental `!:` in the body.
+    const hasBreakingBang = /^[a-zA-Z]+(\([^)]*\))?!:/.test(commitMsg);
+    if (parsed.notes.some(note => note.title.toUpperCase() === "BREAKING CHANGE") || hasBreakingBang || msgUpper.includes("BREAKING CHANGE")) {
       return "major"; // Major takes precedence, we can return early
     }
 

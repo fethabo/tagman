@@ -123,9 +123,18 @@ export async function formatCommitList(
 ): Promise<{ items: string[], references: string[] }> {
   const parsedCommits = await Promise.all(commits.map(async c => {
     const shortHash = c.hash.substring(0, 7);
-    
-    // Use short hash without markdown link for GitHub autolinking
-    const hashLink = baseUrl && c.hash !== "cascade" ? shortHash : `([${shortHash}](${c.hash}))`;
+
+    // Synthetic cascade entries have no real hash → no suffix. With a baseUrl the
+    // bare short hash is enough (GitHub autolinks it). Without a baseUrl, show the
+    // short hash as plain text — never emit a markdown link to an invalid URL.
+    let hashLink: string;
+    if (c.hash === "cascade") {
+      hashLink = "";
+    } else if (baseUrl) {
+      hashLink = shortHash;
+    } else {
+      hashLink = `(${shortHash})`;
+    }
     
     // Bold the conventional-commit prefix before linkifying, so the colon
     // lookup never matches the ":" inside an inserted link URL.
@@ -184,7 +193,7 @@ export async function formatCommitList(
       }
     }
 
-    return `* ${formattedMsg}${authorLink} ${hashLink}`;
+    return `* ${formattedMsg}${authorLink}${hashLink ? ` ${hashLink}` : ""}`;
   }));
 
   return { items: parsedCommits, references: [] };

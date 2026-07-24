@@ -56,7 +56,6 @@
   "files": [
     "dist"
   ],
-  "module": ".dist/index.mjs",
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/index.ts",
