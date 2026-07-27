@@ -203,3 +203,11 @@
 ## [1.4.6](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.5...@fethabo/tagman@1.4.6) (2026-07-15)
 
 * **fix:** modificado criterio de uso de auth con https, se aprovecha flujo de autenticacion ya disponible en releaser. Se ataja error de auth que impedia continuar al verificar cambios remoto sin credenciales en un repo clonado con https @fethabo d45e397
+
+## [1.4.7-alpha.0](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.6...@fethabo/tagman@1.4.7-alpha.0) (2026-07-27)
+
+* **fix:** compatibilidad con pnpm 10 al detectar el workspace @fethabo 2b63160
+* **fix:** robustez del pipeline de release (Windows, graduación, cascada, bump) @fethabo fee239f
+* **fix:** integridad de checkpoint/rollback ante crashes en el release @fethabo 3276313
+* **fix:** valida vigencia del borrador antes de reanudar para evitar reset destructivo @fethabo 8968270
+* Handle GitHub login failures and add i18n messages @fethabo f3b07e6
