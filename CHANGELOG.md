@@ -211,3 +211,13 @@
 * **fix:** integridad de checkpoint/rollback ante crashes en el release @fethabo 3276313
 * **fix:** valida vigencia del borrador antes de reanudar para evitar reset destructivo @fethabo 8968270
 * Handle GitHub login failures and add i18n messages @fethabo f3b07e6
+
+## [1.4.7](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.7-alpha.0...@fethabo/tagman@1.4.7) (2026-07-28)
+
+* **fix:** compatibilidad con pnpm 10 al detectar el workspace @fethabo 2b63160
+* **fix:** robustez del pipeline de release (Windows, graduación, cascada, bump) @fethabo fee239f
+* **fix:** integridad de checkpoint/rollback ante crashes en el release @fethabo 3276313
+* **fix:** valida vigencia del borrador antes de reanudar para evitar reset destructivo @fethabo 8968270
+* **doc:**archivados changes ya implementados @fethabo 49f240d
+* Handle GitHub login failures and add i18n messages @fethabo f3b07e6
+* Add openspec for multiple release-related fixes @fethabo 80789c8
