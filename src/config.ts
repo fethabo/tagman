@@ -1,6 +1,7 @@
 import path from "node:path";
 import { z } from "zod";
 import { readJson, fileExists } from "./utils/index.js";
+import { formatSchemaError } from "./utils/schema-error.js";
 import * as p from "@clack/prompts";
 
 export const tagmanConfigSchema = z.object({
@@ -47,7 +48,7 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<TagmanCon
 
   const result = tagmanConfigSchema.safeParse(raw);
   if (!result.success) {
-    p.log.warn(`[tagman] Invalid config in ${CONFIG_FILENAME} — using defaults.\n${result.error.message}`);
+    p.log.warn(`[tagman] Invalid config in ${CONFIG_FILENAME} — using defaults.\n${formatSchemaError(configPath, result.error)}`);
     return DEFAULTS;
   }
 
