@@ -61,5 +61,10 @@
     "dev": "tsx src/index.ts",
     "start": "node bin/tagman.js",
     "test": "tsx --test src/**/*.test.ts"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

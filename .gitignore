@@ -6,3 +6,4 @@ dist
 .turbo
 .env
 pendings.md
+pnpm-workspace.yaml
