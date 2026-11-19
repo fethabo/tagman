@@ -19,26 +19,45 @@ export async function updatePackageVersion(pkgDir: string, newVersion: string): 
   return newVersion;
 }
 
+const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "peerDependencies"] as const;
+
+/**
+ * Decides how a consumer's reference to an internal dependency changes when that
+ * dependency moves to `newVersion`. Returns the new reference, or null when it
+ * must be left untouched (#70):
+ * - `workspace:*`, `workspace:^`, `workspace:~` → untouched (pnpm resolves them at publish).
+ * - `workspace:<op><semver>` → keeps protocol and operator, swaps the version.
+ * - `<op><semver>` with op `^`, `~` or none → keeps the operator, swaps the version.
+ * - anything else (`catalog:`, `npm:`, `file:`, compound ranges, `*`, dist-tags) → untouched.
+ */
+export function rewriteDependencyRange(current: string, newVersion: string): string | null {
+  const match = /^(workspace:)?([~^]?)(.+)$/.exec(current.trim());
+  if (!match) return null;
+  const [, protocol = "", operator, version] = match;
+  if (semver.valid(version) === null) return null;
+  return `${protocol}${operator}${newVersion}`;
+}
+
 export async function updateConsumerDependencies(
-  consumerDir: string, 
-  dependencyName: string, 
+  consumerDir: string,
+  dependencyName: string,
   newVersion: string
 ): Promise<void> {
   const pkgJsonPath = path.join(consumerDir, "package.json");
   const pkg: PackageJson = await readJson(pkgJsonPath, { parse: packageJsonSchema.parse });
-  
-  const prefix = `^`; // simple default for now, can be improved.
-  if (pkg.dependencies && pkg.dependencies[dependencyName]) {
-    pkg.dependencies[dependencyName] = `${prefix}${newVersion}`;
-  }
-  if (pkg.devDependencies && pkg.devDependencies[dependencyName]) {
-    pkg.devDependencies[dependencyName] = `${prefix}${newVersion}`;
-  }
-  if (pkg.peerDependencies && pkg.peerDependencies[dependencyName]) {
-    pkg.peerDependencies[dependencyName] = `${prefix}${newVersion}`;
+
+  let changed = false;
+  for (const field of DEPENDENCY_FIELDS) {
+    const current = pkg[field]?.[dependencyName];
+    if (current === undefined) continue;
+    const next = rewriteDependencyRange(current, newVersion);
+    if (next !== null && next !== current) {
+      pkg[field]![dependencyName] = next;
+      changed = true;
+    }
   }
 
-  await writeJson(pkgJsonPath, pkg);
+  if (changed) await writeJson(pkgJsonPath, pkg);
 }
 
 import { CommitInfo } from "../git/index.js";
@@ -242,13 +261,29 @@ export async function rollbackPackageVersion(pkgDir: string, oldVersion: string)
   await writeJson(pkgJsonPath, pkg);
 }
 
-export async function rollbackConsumerDependencies(
-  consumerDir: string, 
-  dependencyName: string, 
-  oldVersion: string
+/**
+ * Restores a consumer's references to `dependencyName` to the exact values they
+ * had before the release, taken from the consumer's pre-release manifest (stored
+ * in the checkpoint). Only fields where the reference existed are touched.
+ */
+export async function restoreConsumerDependencies(
+  consumerDir: string,
+  dependencyName: string,
+  originalManifest: PackageJson
 ): Promise<void> {
-  // To keep it simple, we restore using the standard caretaker prefix we use
-  await updateConsumerDependencies(consumerDir, dependencyName, oldVersion);
+  const pkgJsonPath = path.join(consumerDir, "package.json");
+  const pkg: PackageJson = await readJson(pkgJsonPath, { parse: packageJsonSchema.parse });
+
+  let changed = false;
+  for (const field of DEPENDENCY_FIELDS) {
+    const original = originalManifest[field]?.[dependencyName];
+    const current = pkg[field]?.[dependencyName];
+    if (original === undefined || current === undefined || current === original) continue;
+    pkg[field]![dependencyName] = original;
+    changed = true;
+  }
+
+  if (changed) await writeJson(pkgJsonPath, pkg);
 }
 
 import fs from "node:fs/promises";

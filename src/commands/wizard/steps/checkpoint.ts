@@ -7,7 +7,7 @@ import { loadCheckpoint, clearCheckpoint, buildReleaseCommitMessage, type Releas
 import { getWorkspacePackages, getDependents } from "../../../core/workspace.js";
 import {
   rollbackPackageVersion,
-  rollbackConsumerDependencies,
+  restoreConsumerDependencies,
   rollbackChangelog,
 } from "../../../core/updater.js";
 import type { TagmanConfig } from "../../../config.js";
@@ -125,8 +125,9 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
 
               const dependents = getDependents(pkgName, currentWorkspace);
               for (const dep of dependents) {
-                if (rbState.has(dep.manifest.name)) {
-                  await rollbackConsumerDependencies(dep.dir, pkgName, details.pkg.manifest.version);
+                const consumerState = rbState.get(dep.manifest.name);
+                if (consumerState) {
+                  await restoreConsumerDependencies(dep.dir, pkgName, consumerState.pkg.manifest);
                 }
               }
             } catch {
