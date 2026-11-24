@@ -221,3 +221,10 @@
 * **doc:**archivados changes ya implementados @fethabo 49f240d
 * Handle GitHub login failures and add i18n messages @fethabo f3b07e6
 * Add openspec for multiple release-related fixes @fethabo 80789c8
+
+## [1.4.8](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.7...@fethabo/tagman@1.4.8) (2026-11-24)
+
+* **docs(openspec):** archivar fix-cascade-workspace-protocol @fethabo dbd727b
+* **fix:** preservar referencias workspace: en la cascada de dependencias ([#70](https://github.com/fethabo/tagman/issues/70)) @fethabo 4fe4aa4
+* **docs(openspec):** propuesta para preservar workspace: en la cascada ([#70](https://github.com/fethabo/tagman/issues/70)) @fethabo 415e9f0
+* **chore:** reemplazar pnpm-workspace.yaml por onlyBuiltDependencies @fethabo a7194e3
