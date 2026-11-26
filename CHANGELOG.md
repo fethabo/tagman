@@ -228,3 +228,7 @@
 * **fix:** preservar referencias workspace: en la cascada de dependencias ([#70](https://github.com/fethabo/tagman/issues/70)) @fethabo 4fe4aa4
 * **docs(openspec):** propuesta para preservar workspace: en la cascada ([#70](https://github.com/fethabo/tagman/issues/70)) @fethabo 415e9f0
 * **chore:** reemplazar pnpm-workspace.yaml por onlyBuiltDependencies @fethabo a7194e3
+
+## [1.4.9](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.8...@fethabo/tagman@1.4.9) (2026-11-26)
+
+* **fix:** modo headless real para --yes y salida --json parseable ([#71](https://github.com/fethabo/tagman/issues/71)) @fethabo c0c1932
