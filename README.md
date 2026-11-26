@@ -293,22 +293,51 @@ tagman [--lang <lang>]
 # Start the release wizard directly
 tagman release [options]
   --dry-run            Preview all version/tag changes without writing anything
-  --json               Output a structured JSON result to stdout at the end
+  --json               Print only a JSON result to stdout (the UI goes to stderr)
   --packages <names>   Comma-separated package names to release (skips selection prompt)
   --bump <type>        Global bump type: patch | minor | major (skips bump prompt)
-  --yes                Skip all confirmations and auto-accept cascade versioning
+  --yes                Non-interactive: accept the default of every prompt (requires --packages)
   --push               Push commits and tags to remote without asking
-  --lang <lang>        Interface language: es | en (default: es)
+  --allow-dirty        With --yes: release even with uncommitted local changes
+  --allow-behind       With --yes: release even if the branch is behind the remote
 
 # Create GitHub releases from existing local tags
-tagman github-release [options]
-  --lang <lang>        Interface language: es | en (default: es)
+tagman github-release
 ```
 
-**Fully headless** (zero prompts):
+`--lang <es|en>` is a global option: it works before or after the subcommand (`tagman --lang en release` or `tagman release --lang en`).
+
+**Fully headless** (zero prompts, for CI and AI agents):
 ```bash
-tagman release --packages my-lib,my-app --bump patch --yes --push
+tagman release --packages my-lib,my-app --yes --push --json
 ```
+
+With `--yes`, tagman never asks anything. Each decision takes the option the interactive prompt preselects:
+
+- **Bump:** `--bump` if given; otherwise the bump suggested by the conventional commits. A pre-release continues its channel (`2.0.0-rc.1` → `2.0.0-rc.2`), and a pre-release with no new commits graduates.
+- **Tags:** created with the auto-generated message (the graduation message for graduations).
+- **Cascade:** dependents are versioned automatically.
+
+Safety gates are never accepted implicitly. In each of these cases tagman exits with code 1 and writes nothing:
+
+| Situation | Behavior with `--yes` |
+|---|---|
+| No `--packages` | Fails and lists the candidates (`packages-required`) |
+| A requested package has no commits at all | Skipped (pass `--bump` to force it) |
+| Uncommitted local changes | Fails (`dirty-tree`) unless `--allow-dirty` |
+| Branch behind the remote | Fails (`behind-remote`) unless `--allow-behind`; `requireRemoteSync: true` always fails |
+| Interrupted release (checkpoint) | Fails (`pending-checkpoint`); resolve it in an interactive terminal |
+| Push | Only with `--push`; never asked |
+
+Without a TTY (CI, agents) and without `--yes`, tagman does not hang or exit silently. As soon as a prompt would be shown, it exits with code 2 and names the question.
+
+**Exit codes:**
+
+| Code | Meaning |
+|---|---|
+| `0` | Release completed, dry run, nothing to release, or interactive cancel |
+| `1` | Error or failed headless precondition |
+| `2` | A prompt needed an answer and no interaction was possible |
 
 **Preview only:**
 ```bash
@@ -320,7 +349,7 @@ tagman release --dry-run
 tagman release --packages my-lib --bump minor --yes --json
 ```
 
-Output shape:
+With `--json`, stdout contains exactly one JSON document and the UI goes to stderr, so `tagman release ... --json > result.json` is always parseable. On success (`dryRun: true` is added for `--dry-run`):
 ```json
 {
   "success": true,
@@ -334,6 +363,18 @@ Output shape:
   ]
 }
 ```
+
+When the release does not complete:
+```json
+{
+  "success": false,
+  "reason": "packages-required",
+  "message": "--yes requires --packages. Candidates: my-lib, my-app",
+  "candidates": ["my-lib", "my-app"]
+}
+```
+
+`reason` is a stable identifier, the same in every language. It is one of `no-commits`, `cancelled`, `packages-required`, `package-not-found`, `dirty-tree`, `behind-remote`, `pending-checkpoint`, `interaction-required` or `error`. `message` follows `--lang`.
 
 ### Use Cases
 
@@ -863,22 +904,51 @@ tagman [--lang <lang>]
 # Iniciar el wizard de release directamente
 tagman release [opciones]
   --dry-run            Previsualiza versiones y tags sin escribir nada
-  --json               Emite un JSON estructurado al finalizar (útil para scripts y agentes)
+  --json               Emite solo un JSON por stdout (la UI va a stderr)
   --packages <names>   Paquetes a lanzar separados por coma (omite el prompt de selección)
   --bump <type>        Tipo de bump global: patch | minor | major (omite el prompt de bump)
-  --yes                Omite todas las confirmaciones y acepta cascada automáticamente
+  --yes                No interactivo: acepta la opción por defecto de cada prompt (requiere --packages)
   --push               Hace push al remoto sin preguntar
-  --lang <lang>        Idioma de la interfaz: es | en (default: es)
+  --allow-dirty        Con --yes: lanza aunque haya cambios locales sin commitear
+  --allow-behind       Con --yes: lanza aunque la rama esté detrás del remoto
 
 # Crear GitHub releases desde tags locales existentes
-tagman github-release [opciones]
-  --lang <lang>        Idioma de la interfaz: es | en (default: es)
+tagman github-release
 ```
 
-**Modo completamente headless** (sin ningún prompt):
+`--lang <es|en>` es una opción global: funciona antes o después del subcomando (`tagman --lang en release` o `tagman release --lang en`).
+
+**Modo completamente headless** (sin ningún prompt, para CI y agentes de IA):
 ```bash
-tagman release --packages my-lib,my-app --bump patch --yes --push
+tagman release --packages my-lib,my-app --yes --push --json
 ```
+
+Con `--yes`, tagman nunca pregunta nada. Cada decisión toma la opción que el prompt interactivo muestra preseleccionada:
+
+- **Bump:** `--bump` si se pasa; si no, el sugerido por los commits convencionales. Un pre-release continúa su canal (`2.0.0-rc.1` → `2.0.0-rc.2`), y un pre-release sin commits nuevos se gradúa.
+- **Tags:** se crean con el mensaje autogenerado (el de graduación en las graduaciones).
+- **Cascada:** los dependientes se versionan automáticamente.
+
+Las compuertas de seguridad nunca se aceptan solas. En estos casos tagman termina con código 1 sin escribir nada:
+
+| Situación | Comportamiento con `--yes` |
+|---|---|
+| Sin `--packages` | Falla y lista los candidatos (`packages-required`) |
+| Un paquete pedido no tiene ningún commit | Se omite (pasa `--bump` para forzarlo) |
+| Cambios locales sin commitear | Falla (`dirty-tree`), salvo con `--allow-dirty` |
+| Rama detrás del remoto | Falla (`behind-remote`), salvo con `--allow-behind`; con `requireRemoteSync: true` falla siempre |
+| Release interrumpido (checkpoint) | Falla (`pending-checkpoint`); se resuelve en una terminal interactiva |
+| Push | Solo con `--push`; nunca se pregunta |
+
+Sin TTY (CI, agentes) y sin `--yes`, tagman no se cuelga ni sale en silencio. Apenas tendría que mostrar un prompt, termina con código 2 e indica cuál era la pregunta.
+
+**Códigos de salida:**
+
+| Código | Significado |
+|---|---|
+| `0` | Release completo, dry run, nada para liberar o cancelación interactiva |
+| `1` | Error o precondición headless no cumplida |
+| `2` | Un prompt necesitaba respuesta y no había interacción posible |
 
 **Solo previsualizar:**
 ```bash
@@ -890,7 +960,7 @@ tagman release --dry-run
 tagman release --packages my-lib --bump minor --yes --json
 ```
 
-Formato de salida:
+Con `--json`, stdout contiene exactamente un documento JSON y la UI va a stderr, así que `tagman release ... --json > result.json` siempre se puede parsear. En caso de éxito (con `--dry-run` se agrega `dryRun: true`):
 ```json
 {
   "success": true,
@@ -904,6 +974,18 @@ Formato de salida:
   ]
 }
 ```
+
+Cuando el release no se completa:
+```json
+{
+  "success": false,
+  "reason": "packages-required",
+  "message": "--yes requiere --packages. Candidatos: my-lib, my-app",
+  "candidates": ["my-lib", "my-app"]
+}
+```
+
+`reason` es un identificador estable, igual en cualquier idioma. Es uno de `no-commits`, `cancelled`, `packages-required`, `package-not-found`, `dirty-tree`, `behind-remote`, `pending-checkpoint`, `interaction-required` o `error`. `message` respeta `--lang`.
 
 ### Casos de Uso
 

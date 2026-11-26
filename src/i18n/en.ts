@@ -226,4 +226,15 @@ export const en: Messages = {
     githubDeviceLoginSuccess: "GitHub login successful.",
     githubDeviceLoginFailed: (msg) => `GitHub login failed: ${msg}`,
   },
+  headless: {
+    interactionRequired: (prompt) => `This step needs an answer, but tagman is running without interaction (--yes or no TTY): "${prompt}". Run it in an interactive terminal, or pass the flags that resolve it (e.g. --packages, --bump, --push).`,
+    dirtyTree: "There are uncommitted local changes. Commit or stash them, or pass --allow-dirty to release anyway.",
+    behindRemote: (n) => `The branch is ${n} commit(s) behind the remote. Pull first, or pass --allow-behind to release anyway.`,
+    pendingCheckpoint: (step) => `An interrupted release was found (step: ${step}). Run tagman in an interactive terminal to resume or roll it back.`,
+    packagesRequired: (candidates) => `--yes requires --packages. Candidates: ${candidates.join(", ")}`,
+    noCommits: "Nothing to release: no package has new commits or pending graduations.",
+    behindAllowed: (n) => `The branch is ${n} commit(s) behind the remote; continuing because of --allow-behind.`,
+    dirtyAllowed: "There are uncommitted local changes; continuing because of --allow-dirty.",
+    skippedNoCommits: (pkg) => `${pkg} has no commits to release; skipped (pass --bump to force it).`,
+  },
 };

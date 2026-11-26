@@ -220,4 +220,15 @@ export type Messages = {
     githubDeviceLoginSuccess: string;
     githubDeviceLoginFailed: (msg: string) => string;
   };
+  headless: {
+    interactionRequired: (prompt: string) => string;
+    dirtyTree: string;
+    behindRemote: (n: number) => string;
+    pendingCheckpoint: (step: string) => string;
+    packagesRequired: (candidates: string[]) => string;
+    noCommits: string;
+    behindAllowed: (n: number) => string;
+    dirtyAllowed: string;
+    skippedNoCommits: (pkg: string) => string;
+  };
 };

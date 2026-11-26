@@ -1,4 +1,5 @@
 import { CommitParser } from "conventional-commits-parser";
+import semver from "semver";
 
 export type SemverBump = "patch" | "minor" | "major";
 
@@ -40,4 +41,23 @@ export function suggestBump(commits: string[]): SemverBump {
   }
 
   return bump;
+}
+
+/**
+ * The bump the interactive bump prompt preselects for a package. `--yes`
+ * without `--bump` takes exactly this value, so headless and interactive
+ * defaults can never diverge (#71):
+ * - a graduation candidate graduates;
+ * - a pre-release continues its line (`hotfix` stays on the hotfix line);
+ * - a stable version takes the bump suggested by its conventional commits.
+ */
+export function defaultBumpFor(opts: {
+  isGraduation: boolean;
+  currentVersion: string;
+  suggested: SemverBump;
+}): "graduate" | "hotfix" | "prerelease" | SemverBump {
+  if (opts.isGraduation) return "graduate";
+  const pre = semver.prerelease(opts.currentVersion);
+  if (pre !== null) return String(pre[0]) === "hotfix" ? "hotfix" : "prerelease";
+  return opts.suggested;
 }

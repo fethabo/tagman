@@ -14,7 +14,10 @@ pnpm dev        # Run directly via tsx (no build step needed)
 pnpm start      # Execute compiled dist via bin/tagman.js
 ```
 
-No test runner is configured. There are no test files.
+```bash
+pnpm test       # node:test via tsx (src/*/*.test.ts)
+pnpm typecheck  # tsc --noEmit (tsup does not type-check)
+```
 
 ---
 
@@ -63,6 +66,15 @@ src/
 
   plugins/
     index.ts                        TagmanPlugin interface (afterRelease? hook), runAfterRelease()
+
+  ui/                               Headless / agent contract (#71)
+    mode.ts                         RunMode (interactive, json) set once per command;
+                                    HeadlessError (reason, exitCode), ReportedError
+    prompts.ts                      Guarded confirm/select/multiselect/text + assertInteractive();
+                                    the ONLY way to prompt (enforced by prompts.test.ts)
+    gates.ts                        Pure preflight gates: dirty tree, behind remote, checkpoint
+    run.ts                          runCommand() — single exit point: exit codes + JSON document
+    output.ts                       reserveStdoutForJson()/emitJson() — stdout holds only JSON
 
   commands/
     menu.ts                         showMainMenu() — presents release / github-release / exit
@@ -147,8 +159,11 @@ import { readJson } from "../utils/index";
 
 Always check `p.isCancel()` immediately after every prompt:
 
+Never call `p.confirm/select/multiselect/text` (or a `@clack/core` `new *Prompt`) directly: use `ui.*` from `src/ui/prompts.ts`, or call `assertInteractive(message)` first in a custom prompt wrapper. In non-interactive mode (`--yes` or no TTY) a guarded prompt throws `HeadlessError("interaction-required", …, 2)` instead of hanging or silently cancelling. `src/ui/prompts.test.ts` fails the build on direct calls.
+
 ```typescript
-const result = await p.select({ ... });
+import * as ui from "../../../ui/prompts.js";
+const result = await ui.select({ ... });
 if (p.isCancel(result)) {
   p.cancel("Operation cancelled.");
   return null;
@@ -179,7 +194,17 @@ Locale is set once at startup via `setLocale("es" | "en")`. Default is `"es"`.
 
 ### Cancellation contract
 
-Every wizard step function returns `null` (or `false`) on user cancel or unrecoverable error. The orchestrator (`wizard/index.ts`) checks for `null` and exits early — never throws past a step boundary.
+Every wizard step function returns `null` (or `false`) on an **interactive** user cancel. The orchestrator (`wizard/index.ts`) checks for `null` and returns a `cancelled` outcome.
+
+Failures that must reach the exit code are thrown, never returned:
+- `HeadlessError(reason, message, exitCode, extra?)` for headless preconditions (`dirty-tree`, `packages-required`, …).
+- `ReportedError` when a step already logged and reverted (e.g. tag creation failed).
+
+`runCommand()` (`src/ui/run.ts`) wraps every command action and maps the outcome or error to the exit code (0/1/2) and, under `--json`, to the JSON document.
+
+### Headless rule for new prompts
+
+`--yes` accepts the option the interactive prompt **preselects**. Resolve the prompt before calling it (`if (yes) … else await ui.select(…)`) and reuse the same default the prompt uses (see `defaultBumpFor()` in `core/commits.ts`). Safety gates (dirty tree, behind remote, checkpoint, push, package selection) are the exception: they fail instead of assuming. Put them in `src/ui/gates.ts`.
 
 ---
 
@@ -285,30 +310,36 @@ On the next run, if a draft file is detected, the user is offered to resume (ski
 ### Global flag
 | Flag | Description |
 |------|-------------|
-| `--lang <lang>` | UI language: `"es"` (default) or `"en"` |
+| `--lang <lang>` | UI language: `"es"` (default) or `"en"`. Declared only on the root program and applied in a `preAction` hook, so it works before or after the subcommand (`tagman --lang en release` ≡ `tagman release --lang en`) |
 
 ### `tagman release`
 
 ```bash
 tagman release --dry-run                          # Preview changes, no writes
-tagman release --json                             # Output JSON result to stdout
-tagman release --packages pkg-a,pkg-b --bump patch --yes  # Fully headless
-tagman release --push                             # Auto-push after release
+tagman release --packages pkg-a --yes --json      # Headless (agents/CI): zero prompts, JSON on stdout
+tagman release --packages pkg-a,pkg-b --bump patch --yes --push  # Headless + push
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--dry-run` | Show version/tag preview without executing anything |
-| `--json` | Print structured JSON result at end instead of UI message |
-| `--packages <names>` | Comma-separated package names (skips package selection prompt) |
-| `--bump <type>` | Global bump type: `patch`, `minor`, or `major` (skips bump prompt) |
-| `--yes` | Skip all confirmations and auto-accept cascade versioning |
-| `--push` | Push commits and tags to remote without asking |
+| `--json` | stdout holds only the final JSON document; all UI goes to stderr; no screen clear |
+| `--packages <names>` | Comma-separated package names (skips package selection prompt). **Required** with `--yes` |
+| `--bump <type>` | Global bump type: `patch`, `minor`, or `major` (skips bump prompt). Without it, `--yes` uses `defaultBumpFor()` |
+| `--yes` | Non-interactive: accept the preselected option of every prompt (bump, tag + auto message, cascade, graduation conflict → next patch) |
+| `--push` | Push commits and tags to remote without asking. With `--yes`, no push unless `--push` |
+| `--allow-dirty` | Continue with uncommitted changes without asking (otherwise `--yes` fails with `dirty-tree`) |
+| `--allow-behind` | Continue when behind the remote without asking (otherwise `--yes` fails with `behind-remote`; `requireRemoteSync: true` always wins) |
 
-**Fully headless** (zero prompts): combine `--packages`, `--bump`, and `--yes`.
-**JSON output shape:** `{ success: true, packages: [{ name, previousVersion, newVersion, tag }] }`
+**Headless safety gates** (exit 1, nothing written): no `--packages` (`packages-required`, lists `candidates`), unknown package (`package-not-found`), dirty tree, behind remote, pending checkpoint (`pending-checkpoint`; never auto-resumed or rolled back). A requested package with no commits at all is skipped unless `--bump` forces it.
 
-Entry points: `src/commands/wizard/index.ts` (flags), `src/commands/wizard/steps/scan-and-select.ts` (headless branch), `src/commands/wizard/steps/execute.ts` (dry-run / json / push).
+**Exit codes:** `0` released / dry run / nothing to release / interactive cancel · `1` error or failed headless precondition · `2` a prompt was reached without interaction (`--yes` or no TTY).
+
+**JSON output shape:**
+- success: `{ success: true, dryRun?: true, packages: [{ name, previousVersion, newVersion, tag }] }`
+- otherwise: `{ success: false, reason, message, ...extra }`, where `reason` ∈ `no-commits | cancelled | packages-required | package-not-found | dirty-tree | behind-remote | pending-checkpoint | interaction-required | error` (stable, locale-independent) and `message` follows `--lang`
+
+Entry points: `src/commands/wizard/index.ts` (flags, run mode), `src/ui/` (prompts guard, gates, exit codes, JSON), `src/commands/wizard/steps/scan-and-select.ts` (headless package/bump resolution), `src/commands/wizard/steps/execute.ts` (dry-run / push / outcome).
 
 ### `tagman github-release`
 

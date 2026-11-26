@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import * as p from "@clack/prompts";
+import * as ui from "../../../ui/prompts.js";
 import color from "picocolors";
 import semver from "semver";
 import type { ReleaseState } from "../../../core/checkpoint.js";
@@ -11,6 +12,7 @@ import { getGitHubRemoteInfo } from "../../../git/index.js";
 import { resolveGithubToken } from "../../../core/token.js";
 import type { TagmanConfig } from "../../../config.js";
 import { t } from "../../../i18n/index.js";
+import { getRunMode } from "../../../ui/mode.js";
 
 async function buildGraduationMessage(pkgName: string, details: ReleaseState, config?: TagmanConfig): Promise<string> {
   const baseUrl = await getRepositoryBaseUrl();
@@ -51,6 +53,17 @@ export async function promptTagMessages(
   state: Map<string, ReleaseState>,
   config?: TagmanConfig,
 ): Promise<boolean | "back"> {
+  // Headless (#71): every package gets its tag with the preselected message —
+  // the auto-generated one, or the graduation message for a graduation.
+  if (!getRunMode().interactive) {
+    for (const [pkgName, details] of state.entries()) {
+      if (details.bump === "graduate") {
+        details.tagMessage = await buildGraduationMessage(pkgName, details, config);
+      }
+    }
+    return true;
+  }
+
   // Capture originals before any mutation so back-navigation can restore them
   const originalTagMessages = new Map<string, string>(
     Array.from(state.entries()).map(([name, d]) => [name, d.tagMessage])
@@ -150,7 +163,7 @@ export async function promptTagMessages(
               p.note(changelogContent, t().tagMessages.changelogPreview);
               details.tagMessage = changelogContent;
             } else if (msgAction === "append") {
-              const appendedMsg = await p.text({
+              const appendedMsg = await ui.text({
                 message: `${t().tagMessages.appendInput}  ${color.dim(t().tagMessages.cancelToBack)}`,
               });
               if (p.isCancel(appendedMsg)) {
@@ -180,7 +193,7 @@ export async function promptTagMessages(
                 details.tagMessage = graduationAutoMsg + "\n\n" + (appendedMsg as string);
               }
             } else if (msgAction === "custom") {
-              const customMsg = await p.text({
+              const customMsg = await ui.text({
                 message: `${t().tagMessages.customInput}  ${color.dim(t().tagMessages.cancelToBack)}`,
               });
               if (p.isCancel(customMsg)) {
@@ -223,7 +236,7 @@ export async function promptTagMessages(
             if (msgAction === "auto") {
               details.tagMessage = originalMsg;
             } else if (msgAction === "append") {
-              const appendedMsg = await p.text({
+              const appendedMsg = await ui.text({
                 message: `${t().tagMessages.appendInput}  ${color.dim(t().tagMessages.cancelToBack)}`,
               });
               if (p.isCancel(appendedMsg)) {
@@ -257,7 +270,7 @@ export async function promptTagMessages(
                 details.tagMessage = originalMsg + "\n\n" + (appendedMsg as string);
               }
             } else if (msgAction === "custom") {
-              const customMsg = await p.text({
+              const customMsg = await ui.text({
                 message: `${t().tagMessages.customInput}  ${color.dim(t().tagMessages.cancelToBack)}`,
               });
               if (p.isCancel(customMsg)) {

@@ -2,6 +2,7 @@ import { SelectPrompt, wrapTextWithPrefix } from "@clack/core";
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import { t } from "../../i18n/index.js";
+import { assertInteractive } from "../../ui/prompts.js";
 
 export type SelectOpt<T> = { value: T; label: string; hint?: string };
 
@@ -26,6 +27,7 @@ export async function wizardSelect<T>(
   initialValue?: T,
   backLabel?: string,
 ): Promise<T | symbol | typeof SELECT_BACK> {
+  assertInteractive(message);
   const prompt = new SelectPrompt<SelectOpt<T>>({
     options,
     initialValue,

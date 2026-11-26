@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { suggestBump } from "./commits.js";
+import { suggestBump, defaultBumpFor } from "./commits.js";
 
 test("suggestBump", async (t) => {
   await t.test("should return 'patch' for empty commit list", () => {
@@ -76,5 +76,21 @@ test("suggestBump", async (t) => {
       "Feat!: breaking change"
     ];
     assert.strictEqual(suggestBump(commits), "major");
+  });
+});
+
+test("defaultBumpFor (#71: --yes without --bump)", async (t) => {
+  await t.test("stable version takes the suggested bump", () => {
+    const suggested = suggestBump(["feat: add thing"]);
+    assert.strictEqual(defaultBumpFor({ isGraduation: false, currentVersion: "1.2.3", suggested }), "minor");
+  });
+  await t.test("pre-release with new commits continues its channel", () => {
+    assert.strictEqual(defaultBumpFor({ isGraduation: false, currentVersion: "2.0.0-rc.1", suggested: "minor" }), "prerelease");
+  });
+  await t.test("hotfix pre-release stays on the hotfix line", () => {
+    assert.strictEqual(defaultBumpFor({ isGraduation: false, currentVersion: "1.0.1-hotfix.0", suggested: "patch" }), "hotfix");
+  });
+  await t.test("graduation candidate graduates", () => {
+    assert.strictEqual(defaultBumpFor({ isGraduation: true, currentVersion: "2.0.0-rc.3", suggested: "patch" }), "graduate");
   });
 });

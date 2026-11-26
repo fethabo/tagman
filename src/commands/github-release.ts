@@ -1,12 +1,15 @@
 import { Command } from "commander";
 import * as p from "@clack/prompts";
+import * as ui from "../ui/prompts.js";
 import color from "picocolors";
 import { loadConfig } from "../config.js";
 import { listTagsWithMeta, getTagAnnotation, getGitHubRemoteInfo } from "../git/index.js";
 import type { TagInfo } from "../git/index.js";
 import { createGithubRelease, interactiveGithubLogin } from "../integrations/github.js";
 import { resolveGithubToken } from "../core/token.js";
-import { setLocale, t, type Locale } from "../i18n/index.js";
+import { t } from "../i18n/index.js";
+import { setRunMode } from "../ui/mode.js";
+import { runCommand } from "../ui/run.js";
 import { wizardSelect, SELECT_BACK } from "./wizard/wizard-select.js";
 
 const DONE_SENTINEL = "__done__";
@@ -31,7 +34,7 @@ export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof lo
   let token = await resolveGithubToken(cfg.github?.token);
   if (!token) {
     p.log.warn(t().githubRelease.noToken);
-    const login = await p.confirm({
+    const login = await ui.confirm({
       message: t().execute.githubDeviceLoginPrompt,
       initialValue: true,
     });
@@ -95,12 +98,13 @@ export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof lo
       [...packageOptions, doneOption],
     );
 
+    // Check SELECT_BACK before isCancel: isCancel narrows out every symbol (#71)
+    if (pkgResult === SELECT_BACK) continue;
+
     if (p.isCancel(pkgResult)) {
       p.cancel(t().githubRelease.cancelled);
       return;
     }
-
-    if (pkgResult === SELECT_BACK) continue;
 
     const chosenPkg = pkgResult as string;
 
@@ -131,12 +135,12 @@ export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof lo
       t().scan.goBack,
     );
 
+    if (versionResult === SELECT_BACK) continue;
+
     if (p.isCancel(versionResult)) {
       p.cancel(t().githubRelease.cancelled);
       return;
     }
-
-    if (versionResult === SELECT_BACK) continue;
 
     if (versionResult === DESELECT_SENTINEL) {
       const removedTag = selectedByPackage.get(chosenPkg)!;
@@ -185,20 +189,13 @@ export async function runGithubReleaseFlow(config?: Awaited<ReturnType<typeof lo
 
 export const githubReleaseCommand = new Command("github-release")
   .description("Create GitHub Releases from existing local git tags")
-  .option("--lang <lang>", "Interface language: es | en", "es")
-  .action(async (options: { lang: string }) => {
-    if (["es", "en"].includes(options.lang)) {
-      setLocale(options.lang as Locale);
-    }
-
+  .action(async () => {
+    setRunMode({ interactive: process.stdin.isTTY === true, json: false });
     console.clear();
     p.intro(`${color.bgCyan(color.black(" tagman "))} GitHub Releaser`);
 
-    try {
+    await runCommand(async () => {
       await runGithubReleaseFlow();
       p.outro(color.green(t().wizard.bye));
-    } catch (err: any) {
-      p.log.error(err.message);
-      p.outro(t().wizard.error);
-    }
+    });
   });
