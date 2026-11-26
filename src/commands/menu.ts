@@ -1,10 +1,13 @@
 import * as p from "@clack/prompts";
+import * as ui from "../ui/prompts.js";
 import { runWizardFlow, type WizardOptions } from "./wizard/index.js";
 import { runGithubReleaseFlow } from "./github-release.js";
 import { t } from "../i18n/index.js";
+import type { ReleaseOutcome } from "../ui/run.js";
 
-export async function showMainMenu(wizardOptions: Partial<WizardOptions> = {}): Promise<void> {
-  const action = await p.select({
+/** Errors propagate to the caller's `runCommand`, which sets the exit code (#71). */
+export async function showMainMenu(wizardOptions: Partial<WizardOptions> = {}): Promise<ReleaseOutcome | void> {
+  const action = await ui.select({
     message: t().menu.question,
     options: [
       {
@@ -29,24 +32,18 @@ export async function showMainMenu(wizardOptions: Partial<WizardOptions> = {}): 
     return;
   }
 
-  try {
-    if (action === "release") {
-      await runWizardFlow({
-        dryRun: false,
-        json: false,
-        push: false,
-        yes: false,
-        ...wizardOptions,
-      });
-      return;
-    }
+  if (action === "release") {
+    return runWizardFlow({
+      dryRun: false,
+      json: false,
+      push: false,
+      yes: false,
+      ...wizardOptions,
+    });
+  }
 
-    if (action === "github") {
-      await runGithubReleaseFlow();
-      p.outro(t().wizard.bye);
-    }
-  } catch (err: any) {
-    p.log.error(err.message);
-    p.outro(t().wizard.error);
+  if (action === "github") {
+    await runGithubReleaseFlow();
+    p.outro(t().wizard.bye);
   }
 }

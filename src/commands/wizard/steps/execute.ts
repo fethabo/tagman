@@ -1,5 +1,6 @@
 import path from "node:path";
 import * as p from "@clack/prompts";
+import * as ui from "../../../ui/prompts.js";
 import color from "picocolors";
 import {
   updatePackageVersion,
@@ -17,6 +18,8 @@ import { getDependents, type WorkspacePackage } from "../../../core/workspace.js
 import type { TagmanConfig } from "../../../config.js";
 import { t } from "../../../i18n/index.js";
 import { wizardSelect, SELECT_BACK } from "../wizard-select.js";
+import { ReportedError } from "../../../ui/mode.js";
+import type { ReleaseOutcome, ReleasedPackage } from "../../../ui/run.js";
 
 export type ExecuteOptions = {
   dryRun?: boolean;
@@ -27,6 +30,15 @@ export type ExecuteOptions = {
 
 function buildTagName(pkgName: string, newVersion: string, config: TagmanConfig): string {
   return config.tagName === "version-only" ? newVersion : `${pkgName}@${newVersion}`;
+}
+
+function releasedPackages(state: Map<string, ReleaseState>, config: TagmanConfig): ReleasedPackage[] {
+  return Array.from(state.entries()).map(([name, d]) => ({
+    name,
+    previousVersion: d.pkg.manifest.version,
+    newVersion: d.newVersion,
+    tag: buildTagName(name, d.newVersion, config),
+  }));
 }
 
 function previewRelease(state: Map<string, ReleaseState>, config: TagmanConfig): void {
@@ -45,12 +57,12 @@ export async function executeRelease(
   isRecovered: boolean,
   recoveredStep: "writing" | "committing" | null,
   options: ExecuteOptions = {}
-): Promise<"back" | void> {
+): Promise<"back" | ReleaseOutcome> {
   const { dryRun = false, json = false, push = false, yes = false } = options;
 
   if (dryRun) {
     previewRelease(state, config);
-    return;
+    return { success: true, dryRun: true, packages: releasedPackages(state, config) };
   }
 
   // Resolve GitHub context once for use in changelog generation and GitHub Releases.
@@ -91,7 +103,7 @@ export async function executeRelease(
       if (execute === SELECT_BACK) return "back";
       if (p.isCancel(execute) || execute === "no") {
         p.cancel(t().execute.cancelled);
-        return;
+        return { success: false, reason: "cancelled", message: t().execute.cancelled };
       }
     }
 
@@ -125,7 +137,7 @@ export async function executeRelease(
       } catch (e) {
         writingSpinner.stop(t().execute.writingError);
         console.error(e);
-        return;
+        throw new ReportedError(`${t().execute.writingError}: ${(e as Error)?.message ?? e}`);
       }
     }
 
@@ -174,7 +186,7 @@ export async function executeRelease(
     }
     try { await resetLastCommit(); } catch { /* ignorar */ }
     p.log.error(t().execute.revertedGit);
-    return;
+    throw new ReportedError(t().execute.tagsError(e.message));
   }
 
   commitSpinner.stop(t().execute.commitDone);
@@ -197,7 +209,7 @@ export async function executeRelease(
           try { await deleteLocalTag(tag); } catch { /* ignore */ }
         }
       }
-      return;
+      throw new ReportedError(t().execute.reorderFailed(e.message));
     }
   }
 
@@ -205,8 +217,8 @@ export async function executeRelease(
   let doPush = false;
   if (createdTags.length > 0) {
     doPush = push;
-    if (!push) {
-      const shouldPush = await p.confirm({
+    if (!push && !yes) {
+      const shouldPush = await ui.confirm({
         message: t().execute.pushQuestion,
         initialValue: true,
       });
@@ -226,7 +238,7 @@ export async function executeRelease(
         // the push with the freshly obtained token (write-path auth).
         let retried = false;
         if (ghInfo?.protocol === "https" && !ghToken && !yes) {
-          const login = await p.confirm({
+          const login = await ui.confirm({
             message: t().execute.pushHttpsLoginPrompt,
             initialValue: true,
           });
@@ -266,7 +278,7 @@ export async function executeRelease(
       if (!ghToken) {
         p.log.warn(t().execute.githubNoToken);
         if (!yes) {
-          const login = await p.confirm({
+          const login = await ui.confirm({
             message: t().execute.githubDeviceLoginPrompt,
             initialValue: true,
           });
@@ -331,32 +343,15 @@ export async function executeRelease(
     npmSpinner.stop(t().execute.npmDone);
   }
 
+  const packages = releasedPackages(state, config);
+
   // Plugins
   if (config.plugins?.length) {
-    const pluginResult: ReleaseResult = {
-      packages: Array.from(state.entries()).map(([name, d]) => ({
-        name,
-        previousVersion: d.pkg.manifest.version,
-        newVersion: d.newVersion,
-        tag: buildTagName(name, d.newVersion, config),
-      })),
-    };
+    const pluginResult: ReleaseResult = { packages };
     await runAfterRelease(config.plugins, pluginResult);
   }
 
-  if (json) {
-    const output = {
-      success: true,
-      packages: Array.from(state.entries()).map(([name, d]) => ({
-        name,
-        previousVersion: d.pkg.manifest.version,
-        newVersion: d.newVersion,
-        tag: buildTagName(name, d.newVersion, config),
-      })),
-    };
-    console.log(JSON.stringify(output, null, 2));
-    return;
-  }
-
+  // The JSON document (when --json) is emitted by runCommand from this outcome
   p.outro(color.green(t().execute.done));
+  return { success: true, packages };
 }

@@ -2,12 +2,14 @@ import { SelectPrompt, wrapTextWithPrefix } from "@clack/core";
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import { t } from "../../i18n/index.js";
+import { assertInteractive } from "../../ui/prompts.js";
 import type { ReleaseState } from "../../core/checkpoint.js";
 
 export async function showDraftResumePrompt(
   draftState: Map<string, ReleaseState>,
   validation?: { blockers: string[]; warnings: string[] },
 ): Promise<"resume" | "discard" | symbol> {
+  assertInteractive(t().draft.resume);
   let showDetails = false;
 
   const blockers = validation?.blockers ?? [];

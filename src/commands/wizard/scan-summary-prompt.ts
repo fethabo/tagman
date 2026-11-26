@@ -2,11 +2,13 @@ import { SelectPrompt, wrapTextWithPrefix } from "@clack/core";
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import { t } from "../../i18n/index.js";
+import { assertInteractive } from "../../ui/prompts.js";
 import type { ReleaseState } from "../../core/checkpoint.js";
 
 export async function showScanSummaryPrompt(
   state: Map<string, ReleaseState>,
 ): Promise<"proceed" | "save" | "back" | "remove" | symbol> {
+  assertInteractive(t().draft.actionQuestion);
   let showDetails = false;
 
   const options = [

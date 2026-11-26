@@ -226,4 +226,15 @@ export const es: Messages = {
     githubDeviceLoginSuccess: "Sesión de GitHub iniciada exitosamente.",
     githubDeviceLoginFailed: (msg) => `Falló el inicio de sesión con GitHub: ${msg}`,
   },
+  headless: {
+    interactionRequired: (prompt) => `Este paso necesita una respuesta, pero tagman corre sin interacción (--yes o sin TTY): "${prompt}". Ejecútalo en una terminal interactiva o pasa los flags que lo resuelven (p. ej. --packages, --bump, --push).`,
+    dirtyTree: "Hay cambios locales sin commitear. Haz commit o stash de ellos, o pasa --allow-dirty para liberar igual.",
+    behindRemote: (n) => `La rama está ${n} commit(s) detrás del remoto. Haz pull primero, o pasa --allow-behind para liberar igual.`,
+    pendingCheckpoint: (step) => `Se encontró un release interrumpido (paso: ${step}). Ejecuta tagman en una terminal interactiva para retomarlo o revertirlo.`,
+    packagesRequired: (candidates) => `--yes requiere --packages. Candidatos: ${candidates.join(", ")}`,
+    noCommits: "Nada para liberar: ningún paquete tiene commits nuevos ni graduaciones pendientes.",
+    behindAllowed: (n) => `La rama está ${n} commit(s) detrás del remoto; se continúa por --allow-behind.`,
+    dirtyAllowed: "Hay cambios locales sin commitear; se continúa por --allow-dirty.",
+    skippedNoCommits: (pkg) => `${pkg} no tiene commits para liberar; se omite (pasa --bump para forzarlo).`,
+  },
 };

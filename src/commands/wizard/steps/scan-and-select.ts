@@ -1,4 +1,6 @@
 import * as p from "@clack/prompts";
+import * as ui from "../../../ui/prompts.js";
+import { HeadlessError } from "../../../ui/mode.js";
 import color from "picocolors";
 import semver from "semver";
 import {
@@ -6,7 +8,7 @@ import {
   getLatestRemoteStableVersion, getUnreleasedCommitsForPath, getUnreleasedRepoCommits,
   getRepoCommitsSince, getCurrentBranch, getNotPushedHashes, getGitHubRemoteInfo, git, type CommitInfo,
 } from "../../../git/index.js";
-import { suggestBump } from "../../../core/commits.js";
+import { suggestBump, defaultBumpFor } from "../../../core/commits.js";
 import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js";
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
 import type { ReleaseState } from "../../../core/checkpoint.js";
@@ -131,17 +133,38 @@ export async function scanAndSelectPackages(
 
   // Step 1: Select packages
   let selectedNames: string[];
+  if (yes && !pkgFilter) {
+    // Headless never picks packages on its own (#71): releasing "everything"
+    // is too broad a default for an agent or CI job.
+    const candidates = allCandidates.filter(info => !info.isNoCommits).map(info => info.pkg.manifest.name);
+    throw new HeadlessError("packages-required", t().headless.packagesRequired(candidates), 1, { candidates });
+  }
   if (pkgFilter) {
     const requested = pkgFilter.split(",").map(s => s.trim()).filter(Boolean);
     selectedNames = allCandidates
       .map(info => info.pkg.manifest.name)
       .filter(name => requested.includes(name));
     if (selectedNames.length === 0) {
+      if (yes) {
+        throw new HeadlessError("package-not-found", t().scan.noMatchingPackages(pkgFilter), 1, { requested });
+      }
       p.log.error(t().scan.noMatchingPackages(pkgFilter));
       return null;
     }
+    // Headless without an explicit --bump: a requested package with no commits
+    // at all has nothing to release, so it is skipped instead of getting a
+    // content-less patch. An explicit --bump still forces it.
+    if (yes && !globalBump) {
+      const empty = new Set(
+        allCandidates.filter(info => info.isNoCommits).map(info => info.pkg.manifest.name),
+      );
+      const skipped = selectedNames.filter(name => empty.has(name));
+      for (const name of skipped) p.log.warn(t().headless.skippedNoCommits(name));
+      selectedNames = selectedNames.filter(name => !empty.has(name));
+      if (selectedNames.length === 0) return "no-commits";
+    }
   } else {
-    const result = await p.multiselect({
+    const result = await ui.multiselect({
       message: `${t().scan.selectPackages} ${color.dim(`[${currentBranch}]`)}`,
       options: allCandidates.map(info => ({
         value: info.pkg.manifest.name,
@@ -215,7 +238,12 @@ export async function scanAndSelectPackages(
 
         // Step 2: Path-specific commit selection
         if (globalBump !== undefined || yes) {
-          chosenCommits = pkgInfo.isExtraOnly ? pkgInfo.extraCommits : pkgInfo.commits;
+          if (pkgInfo.isGraduation) {
+            isGraduationMode = true;
+            chosenCommits = [];
+          } else {
+            chosenCommits = pkgInfo.isExtraOnly ? pkgInfo.extraCommits : pkgInfo.commits;
+          }
         } else if (pkgInfo.isGraduation) {
           isGraduationMode = true;
           let graduationExtraCommits: CommitInfo[] = [];
@@ -294,7 +322,7 @@ export async function scanAndSelectPackages(
                 }
               }
 
-              const confirm = await p.confirm({
+              const confirm = await ui.confirm({
                 message: t().scan.zeroCommitsGraduate(pkgName, currentVersion),
                 initialValue: true,
               });
@@ -412,8 +440,13 @@ export async function scanAndSelectPackages(
           ? String(semver.prerelease(currentVersion)![0])
           : undefined;
 
+        const preselectedBump = defaultBumpFor({ isGraduation: isGraduationMode, currentVersion, suggested });
+
         if (globalBump) {
           bump = globalBump;
+        } else if (yes) {
+          // --yes without --bump: take what the bump prompt preselects (#71)
+          bump = preselectedBump;
         } else {
           const mainBumpOptions: { value: string; label: string; hint?: string }[] = [];
 
@@ -448,7 +481,7 @@ export async function scanAndSelectPackages(
           const result = await wizardSelect(
             `${t().scan.selectBump(pkgName, currentVersion)} ${color.cyan(pkgName)}${progressLabel} (Current: ${currentVersion})`,
             mainBumpOptions,
-            isGraduationMode ? "graduate" : (isCurrentPrerelease ? (isCurrentHotfix ? "hotfix" : "prerelease") : suggested),
+            preselectedBump,
             t().scan.goBack,
           );
 
@@ -521,7 +554,7 @@ export async function scanAndSelectPackages(
 
                 let channelName: string;
                 if (channelResult === "custom") {
-                  const customChannel = await p.text({ message: t().scan.channelCustomInput });
+                  const customChannel = await ui.text({ message: t().scan.channelCustomInput });
                   if (p.isCancel(customChannel)) {
                     p.cancel(t().scan.cancelled);
                     return null;
@@ -567,7 +600,8 @@ export async function scanAndSelectPackages(
           const suggestedNext = semver.inc(latestRemoteStable, "patch")!;
           p.log.warn(t().scan.graduationConflictWarning(newVersion, latestRemoteStable));
 
-          const upgrade = await p.confirm({
+          // --yes accepts the preselected answer (upgrade to the next patch) (#71)
+          const upgrade = yes ? true : await ui.confirm({
             message: t().scan.graduationConflictQuestion(suggestedNext),
             initialValue: true,
           });
@@ -578,7 +612,7 @@ export async function scanAndSelectPackages(
           if (upgrade) newVersion = suggestedNext;
         }
       } else if (bump === "custom") {
-        const customV = await p.text({
+        const customV = await ui.text({
           message: t().scan.customVersion(pkgName),
           validate: (val) => {
             if (!semver.valid(val)) return t().scan.customVersionError;

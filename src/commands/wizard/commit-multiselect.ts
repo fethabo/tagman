@@ -2,6 +2,7 @@ import * as p from "@clack/prompts";
 import { MultiSelectPrompt, wrapTextWithPrefix } from "@clack/core";
 import color from "picocolors";
 import { t } from "../../i18n/index.js";
+import { assertInteractive } from "../../ui/prompts.js";
 
 export type CommitOpt = { value: string; label: string; details?: string };
 
@@ -48,6 +49,7 @@ export async function commitMultiSelect(
   goBackLabel?: string,
   allowEmpty?: boolean,
 ): Promise<string[] | symbol | typeof COMMIT_BACK> {
+  assertInteractive(message);
   const GO_BACK      = '__tagman_go_back__';
   const commitValues = options.map(o => o.value);
   const allOptions   = [...options];

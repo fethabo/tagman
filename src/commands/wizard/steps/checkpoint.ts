@@ -1,4 +1,5 @@
 import * as p from "@clack/prompts";
+import * as ui from "../../../ui/prompts.js";
 import color from "picocolors";
 import { hasUncommittedChanges, deleteLocalTag, resetLastCommit, checkRemoteSync, getGitHubRemoteInfo, git } from "../../../git/index.js";
 import { resolveGithubToken } from "../../../core/token.js";
@@ -11,6 +12,15 @@ import {
   rollbackChangelog,
 } from "../../../core/updater.js";
 import type { TagmanConfig } from "../../../config.js";
+import { getRunMode, HeadlessError } from "../../../ui/mode.js";
+import { dirtyTreeGate, behindRemoteGate, pendingCheckpointGate, type GateContext } from "../../../ui/gates.js";
+
+export type PreflightOptions = {
+  /** --allow-dirty: continue with uncommitted local changes without asking. */
+  allowDirty?: boolean;
+  /** --allow-behind: continue when the branch is behind its remote without asking. */
+  allowBehind?: boolean;
+};
 
 export type CheckpointResult = {
   state: Map<string, ReleaseState>;
@@ -18,15 +28,38 @@ export type CheckpointResult = {
   recoveredStep: "writing" | "committing" | null;
 };
 
-export async function handleCheckpoint(config: TagmanConfig): Promise<CheckpointResult | null> {
+export async function handleCheckpoint(
+  config: TagmanConfig,
+  preflight: PreflightOptions = {},
+): Promise<CheckpointResult | null> {
+  const gateCtx: GateContext = {
+    interactive: getRunMode().interactive,
+    allowDirty: preflight.allowDirty ?? false,
+    allowBehind: preflight.allowBehind ?? false,
+    requireRemoteSync: config.requireRemoteSync ?? false,
+  };
+
+  // Headless: an interrupted release is checked first — its partial writes make
+  // the tree dirty, and "dirty-tree" would hide the real cause (#71).
+  const pending = await loadCheckpoint();
+  if (pending && pendingCheckpointGate(gateCtx) === "fail") {
+    throw new HeadlessError("pending-checkpoint", t().headless.pendingCheckpoint(pending.step), 1, { step: pending.step });
+  }
+
   if (await hasUncommittedChanges()) {
-    const proceed = await p.confirm({
-      message: `${color.yellow(t().checkpoint.uncommittedWarning)} ${t().checkpoint.uncommittedQuestion}`,
-      initialValue: false,
-    });
-    if (p.isCancel(proceed) || !proceed) {
-      p.cancel(t().checkpoint.cancelled);
-      return null;
+    const action = dirtyTreeGate(gateCtx);
+    if (action === "fail") throw new HeadlessError("dirty-tree", t().headless.dirtyTree, 1);
+    if (action === "continue") {
+      p.log.warn(t().headless.dirtyAllowed);
+    } else {
+      const proceed = await ui.confirm({
+        message: `${color.yellow(t().checkpoint.uncommittedWarning)} ${t().checkpoint.uncommittedQuestion}`,
+        initialValue: false,
+      });
+      if (p.isCancel(proceed) || !proceed) {
+        p.cancel(t().checkpoint.cancelled);
+        return null;
+      }
     }
   }
 
@@ -52,18 +85,29 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
     };
     p.log.warn(t().checkpoint.remoteUnverified(reasonMap[sync.reason]));
   } else if (sync.behind > 0) {
-    if (config.requireRemoteSync) {
+    const action = behindRemoteGate(gateCtx);
+    if (action === "fail" && !gateCtx.interactive) {
+      const message = config.requireRemoteSync
+        ? `${t().checkpoint.behindRemote(sync.behind)} ${t().checkpoint.behindBlocked}`
+        : t().headless.behindRemote(sync.behind);
+      throw new HeadlessError("behind-remote", message, 1, { behind: sync.behind });
+    }
+    if (action === "fail") {
       p.log.error(t().checkpoint.behindRemote(sync.behind));
       p.cancel(t().checkpoint.behindBlocked);
       return null;
     }
-    const proceed = await p.confirm({
-      message: `${color.yellow(t().checkpoint.behindRemote(sync.behind))} ${t().checkpoint.behindQuestion}`,
-      initialValue: false,
-    });
-    if (p.isCancel(proceed) || !proceed) {
-      p.cancel(t().checkpoint.cancelled);
-      return null;
+    if (action === "continue") {
+      p.log.warn(t().headless.behindAllowed(sync.behind));
+    } else {
+      const proceed = await ui.confirm({
+        message: `${color.yellow(t().checkpoint.behindRemote(sync.behind))} ${t().checkpoint.behindQuestion}`,
+        initialValue: false,
+      });
+      if (p.isCancel(proceed) || !proceed) {
+        p.cancel(t().checkpoint.cancelled);
+        return null;
+      }
     }
   }
 
@@ -71,9 +115,9 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
   let isRecovered = false;
   let recoveredStep: "writing" | "committing" | null = null;
 
-  const checkpoint = await loadCheckpoint();
+  const checkpoint = pending;
   if (checkpoint) {
-    const resume = await p.confirm({
+    const resume = await ui.confirm({
       message: t().checkpoint.interruptedRelease(checkpoint.step),
       initialValue: true,
     });
@@ -88,7 +132,7 @@ export async function handleCheckpoint(config: TagmanConfig): Promise<Checkpoint
       isRecovered = true;
       recoveredStep = checkpoint.step;
     } else {
-      const doRollback = await p.confirm({
+      const doRollback = await ui.confirm({
         message: t().checkpoint.rollbackQuestion,
         initialValue: true,
       });
