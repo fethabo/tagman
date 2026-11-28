@@ -232,3 +232,7 @@
 ## [1.4.9](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.8...@fethabo/tagman@1.4.9) (2026-11-26)
 
 * **fix:** modo headless real para --yes y salida --json parseable ([#71](https://github.com/fethabo/tagman/issues/71)) @fethabo c0c1932
+
+## [1.4.10](https://github.com/fethabo/tagman/compare/@fethabo/tagman@1.4.9...@fethabo/tagman@1.4.10) (2026-11-28)
+
+* **fix:** búsqueda de tags y link del changelog respetan tagName version-only ([#74](https://github.com/fethabo/tagman/issues/74)) @fethabo 2228358
