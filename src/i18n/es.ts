@@ -236,5 +236,6 @@ export const es: Messages = {
     behindAllowed: (n) => `La rama está ${n} commit(s) detrás del remoto; se continúa por --allow-behind.`,
     dirtyAllowed: "Hay cambios locales sin commitear; se continúa por --allow-dirty.",
     skippedNoCommits: (pkg) => `${pkg} no tiene commits para liberar; se omite (pasa --bump para forzarlo).`,
+    versionOnlyMonorepo: (count) => `"tagName": "version-only" solo sirve para repos de un paquete, y este workspace tiene ${count}: dos paquetes con la misma versión compartirían el tag. Cambia "tagName" a "full" en tagman.config.json.`,
   },
 };

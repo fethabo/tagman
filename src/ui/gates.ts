@@ -31,3 +31,12 @@ export function behindRemoteGate(ctx: GateContext): GateAction {
 export function pendingCheckpointGate(ctx: Pick<GateContext, "interactive">): GateAction {
   return ctx.interactive ? "ask" : "fail";
 }
+
+/**
+ * `version-only` tags carry no package name, so in a multi-package workspace two
+ * packages at the same version would share one tag and each scan would read the
+ * other's releases (#74). A config error: fails in every mode, no flag allows it.
+ */
+export function tagSchemeGate(ctx: { tagName: "full" | "version-only"; packageCount: number }): GateAction {
+  return ctx.tagName === "version-only" && ctx.packageCount > 1 ? "fail" : "continue";
+}

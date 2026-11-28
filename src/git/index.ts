@@ -1,5 +1,6 @@
 import { simpleGit, SimpleGit } from "simple-git";
 import semver from "semver";
+import { tagGlobs, parseTagVersion, type TagScheme } from "../core/tag-scheme.js";
 
 /**
  * Milliseconds of silence (no stdout/stderr) after which simple-git forcibly
@@ -86,32 +87,37 @@ export async function hasUncommittedChanges(): Promise<boolean> {
   return !status.isClean();
 }
 
+type PackageTag = { tag: string; version: string };
+
 /**
- * Lists tags matching `name@*` sorted by semver descending (highest first).
- * Sorting happens in JS because git's `--sort=-v:refname` doesn't understand
- * pre-release suffixes (it ranks `1.2.0-beta.3` above `1.2.0`), which made the
- * scan baseline regress to an old pre-release tag after a graduation (#62).
- * Tags whose version portion is not valid semver are discarded.
+ * Lists the release tags of a package under the configured scheme (#74), sorted
+ * by semver descending (highest first). Sorting happens in JS because git's
+ * `--sort=-v:refname` doesn't understand pre-release suffixes (it ranks
+ * `1.2.0-beta.3` above `1.2.0`), which made the scan baseline regress to an old
+ * pre-release tag after a graduation (#62). Tags that are not semver release
+ * tags of the package are discarded — including when used as `^tag` exclusions,
+ * where an unrelated tag (`2fa-setup`) would hide unreleased commits.
  */
-async function getTagsSortedBySemver(packageName: string): Promise<string[]> {
-  const raw = await git.raw(["tag", "-l", `${packageName}@*`]);
+async function listPackageTags(packageName: string, tagName: TagScheme): Promise<PackageTag[]> {
+  const raw = await git.raw(["tag", "-l", ...tagGlobs(packageName, tagName)]);
   return raw
     .split("\n")
     .filter(Boolean)
-    .map(tag => ({ tag, version: tag.slice(packageName.length + 1) }))
-    .filter(({ version }) => semver.valid(version) !== null)
-    .sort((a, b) => semver.rcompare(a.version, b.version))
-    .map(({ tag }) => tag);
+    .flatMap(tag => {
+      const version = parseTagVersion(tag, packageName, tagName);
+      return version === null ? [] : [{ tag, version }];
+    })
+    .sort((a, b) => semver.rcompare(a.version, b.version));
 }
 
 /**
- * Gets the last tag for a specific package, format: name@version.
- * Returns null if no such tag exists.
+ * Gets the last release tag for a package (`name@version` or `version`,
+ * per `tagName`). Returns null if no such tag exists.
  */
-export async function getLastTagForPackage(packageName: string): Promise<string | null> {
+export async function getLastTagForPackage(packageName: string, tagName: TagScheme): Promise<string | null> {
   try {
-    const tags = await getTagsSortedBySemver(packageName);
-    return tags.length > 0 ? tags[0] : null;
+    const tags = await listPackageTags(packageName, tagName);
+    return tags.length > 0 ? tags[0].tag : null;
   } catch (error) {
     return null;
   }
@@ -121,14 +127,10 @@ export async function getLastTagForPackage(packageName: string): Promise<string 
  * Returns the most recent non-prerelease tag for a package (e.g. "my-pkg@1.2.0"),
  * or null if no stable tag exists. Used to gather changelog commits for a graduation.
  */
-export async function getLastStableTagForPackage(packageName: string): Promise<string | null> {
+export async function getLastStableTagForPackage(packageName: string, tagName: TagScheme): Promise<string | null> {
   try {
-    const tags = await getTagsSortedBySemver(packageName);
-    for (const tag of tags) {
-      const version = tag.slice(packageName.length + 1); // strip "name@"
-      if (semver.prerelease(version) === null) return tag;
-    }
-    return null;
+    const tags = await listPackageTags(packageName, tagName);
+    return tags.find(({ version }) => semver.prerelease(version) === null)?.tag ?? null;
   } catch {
     return null;
   }
@@ -140,15 +142,11 @@ export async function getLastStableTagForPackage(packageName: string): Promise<s
  * Uses a network-hardened git (timeout + no interactive prompts) so a missing
  * credential or unreachable remote fails fast instead of hanging.
  */
-export async function getLatestRemoteStableVersion(packageName: string, token?: string | null): Promise<string | null> {
+export async function getLatestRemoteStableVersion(packageName: string, tagName: TagScheme, token?: string | null): Promise<string | null> {
   try {
     await networkGit(token ? tokenAuthEnv(token) : undefined).fetch(["--tags", "--quiet"]);
-    const tags = await getTagsSortedBySemver(packageName);
-    for (const tag of tags) {
-      const version = tag.slice(packageName.length + 1);
-      if (semver.prerelease(version) === null) return version;
-    }
-    return null;
+    const tags = await listPackageTags(packageName, tagName);
+    return tags.find(({ version }) => semver.prerelease(version) === null)?.version ?? null;
   } catch {
     return null;
   }
@@ -188,12 +186,12 @@ export async function getCommitsForPath(path: string, sinceTag: string | null): 
  * repos with parallel pre-release channels (#62): the semver-highest tag can
  * belong to another branch's history, while the current branch's commits were
  * already released under its own channel tags — a single-tag baseline re-lists
- * them. Excluding every `name@*` tag handles any branching topology.
+ * them. Excluding every release tag of the package handles any branching topology.
  */
-export async function getUnreleasedCommitsForPath(path: string, packageName: string): Promise<CommitInfo[]> {
+export async function getUnreleasedCommitsForPath(path: string, packageName: string, tagName: TagScheme): Promise<CommitInfo[]> {
   try {
-    const tags = await listAllTags(`${packageName}@*`);
-    const log = await git.log(["HEAD", ...tags.map(t => `^${t}`), "--", path]);
+    const tags = await listPackageTags(packageName, tagName);
+    const log = await git.log(["HEAD", ...tags.map(({ tag }) => `^${tag}`), "--", path]);
 
     return log.all
       .filter(c => !c.message.startsWith("chore(release):") && !c.message.startsWith("chore(pre-release):"))
@@ -215,10 +213,10 @@ export async function getUnreleasedCommitsForPath(path: string, packageName: str
  * Gets all repo commits (no path filter) not reachable from any tag of the
  * package. Counterpart of getUnreleasedCommitsForPath for "extra" commits.
  */
-export async function getUnreleasedRepoCommits(packageName: string): Promise<CommitInfo[]> {
+export async function getUnreleasedRepoCommits(packageName: string, tagName: TagScheme): Promise<CommitInfo[]> {
   try {
-    const tags = await listAllTags(`${packageName}@*`);
-    const log = await git.log(["HEAD", ...tags.map(t => `^${t}`)]);
+    const tags = await listPackageTags(packageName, tagName);
+    const log = await git.log(["HEAD", ...tags.map(({ tag }) => `^${tag}`)]);
     return log.all
       .filter(c => !c.message.startsWith("chore(release):") && !c.message.startsWith("chore(pre-release):"))
       .map(c => ({

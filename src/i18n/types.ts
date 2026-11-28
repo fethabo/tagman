@@ -230,5 +230,6 @@ export type Messages = {
     behindAllowed: (n: number) => string;
     dirtyAllowed: string;
     skippedNoCommits: (pkg: string) => string;
+    versionOnlyMonorepo: (count: number) => string;
   };
 };

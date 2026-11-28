@@ -12,6 +12,7 @@ import {
   rollbackChangelog,
 } from "../../../core/updater.js";
 import type { TagmanConfig } from "../../../config.js";
+import { formatTag } from "../../../core/tag-scheme.js";
 import { getRunMode, HeadlessError } from "../../../ui/mode.js";
 import { dirtyTreeGate, behindRemoteGate, pendingCheckpointGate, type GateContext } from "../../../ui/gates.js";
 
@@ -149,9 +150,7 @@ export async function handleCheckpoint(
           // partially-created tags, then hard-reset to the original HEAD — this
           // restores the reordered commits and discards all writes in one step.
           for (const [pkgName, details] of rbState.entries()) {
-            const tagName = config.tagName === "version-only"
-              ? details.newVersion
-              : `${pkgName}@${details.newVersion}`;
+            const tagName = formatTag(pkgName, details.newVersion, config.tagName);
             try { await deleteLocalTag(tagName); } catch { /* el tag puede no existir */ }
           }
           try {
@@ -190,9 +189,7 @@ export async function handleCheckpoint(
               }
               // Eliminar tags que pudieron haberse creado parcialmente
               for (const [pkgName, details] of rbState.entries()) {
-                const tagName = config.tagName === "version-only"
-                  ? details.newVersion
-                  : `${pkgName}@${details.newVersion}`;
+                const tagName = formatTag(pkgName, details.newVersion, config.tagName);
                 try { await deleteLocalTag(tagName); } catch { /* el tag puede no existir */ }
               }
             } catch {

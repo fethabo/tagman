@@ -236,5 +236,6 @@ export const en: Messages = {
     behindAllowed: (n) => `The branch is ${n} commit(s) behind the remote; continuing because of --allow-behind.`,
     dirtyAllowed: "There are uncommitted local changes; continuing because of --allow-dirty.",
     skippedNoCommits: (pkg) => `${pkg} has no commits to release; skipped (pass --bump to force it).`,
+    versionOnlyMonorepo: (count) => `"tagName": "version-only" only works for single-package repos, and this workspace has ${count}: two packages at the same version would share a tag. Set "tagName" to "full" in tagman.config.json.`,
   },
 };

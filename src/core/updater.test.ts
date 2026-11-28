@@ -7,7 +7,30 @@ import {
   rewriteDependencyRange,
   updateConsumerDependencies,
   restoreConsumerDependencies,
+  buildCompareLink,
 } from "./updater.js";
+
+test("buildCompareLink (#74)", async (t) => {
+  const base = "https://github.com/owner/repo";
+
+  await t.test("version-only compares bare version tags", () => {
+    assert.strictEqual(
+      buildCompareLink(base, "pkg", "0.11.0", "0.12.0", "version-only"),
+      `${base}/compare/0.11.0...0.12.0`,
+    );
+  });
+
+  await t.test("full compares pkg@ tags", () => {
+    assert.strictEqual(
+      buildCompareLink(base, "pkg", "1.3.0", "1.4.0", "full"),
+      `${base}/compare/pkg@1.3.0...pkg@1.4.0`,
+    );
+  });
+
+  await t.test("without a remote it returns the bare range", () => {
+    assert.strictEqual(buildCompareLink("", "pkg", "0.11.0", "0.12.0", "version-only"), "0.11.0...0.12.0");
+  });
+});
 
 test("rewriteDependencyRange", async (t) => {
   const cases: Array<[string, string, string | null]> = [

@@ -13,6 +13,7 @@ import { getRepositoryBaseUrl, formatCommitList } from "../../../core/updater.js
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
 import type { ReleaseState } from "../../../core/checkpoint.js";
 import type { TagmanConfig } from "../../../config.js";
+import { formatTag } from "../../../core/tag-scheme.js";
 import { commitMultiSelect, linkifyCommitMessage, COMMIT_BACK } from "../commit-multiselect.js";
 import { wizardSelect, SELECT_BACK } from "../wizard-select.js";
 import { resolveGithubToken } from "../../../core/token.js";
@@ -73,22 +74,22 @@ export async function scanAndSelectPackages(
   spinner.start(t().scan.scanning);
 
   for (const pkg of allPackages) {
-    const lastTag = await getLastTagForPackage(pkg.manifest.name);
+    const lastTag = await getLastTagForPackage(pkg.manifest.name, config.tagName);
     // "Unreleased" means not reachable from ANY tag of the package — a single
     // lastTag..HEAD range re-lists already-released commits when pre-release
     // channels run in parallel branches (#62).
-    const commits = await getUnreleasedCommitsForPath(pkg.dir, pkg.manifest.name);
+    const commits = await getUnreleasedCommitsForPath(pkg.dir, pkg.manifest.name, config.tagName);
     if (commits.length > 0) {
-      const repoCommits = await getUnreleasedRepoCommits(pkg.manifest.name);
+      const repoCommits = await getUnreleasedRepoCommits(pkg.manifest.name, config.tagName);
       const pathHashes = new Set(commits.map(c => c.hash));
       const extraCommits = repoCommits.filter(c => !pathHashes.has(c.hash));
       packagesWithCommits.push({ pkg, commits, extraCommits, lastTag });
     } else if (semver.prerelease(pkg.manifest.version) !== null) {
-      const lastStableTag = await getLastStableTagForPackage(pkg.manifest.name);
+      const lastStableTag = await getLastStableTagForPackage(pkg.manifest.name, config.tagName);
       // Graduation changelogs deliberately aggregate the whole cycle since the
       // last stable tag, so this keeps the single-tag range.
       const cycleCommits = await getCommitsForPath(pkg.dir, lastStableTag);
-      const extraCommits = await getUnreleasedRepoCommits(pkg.manifest.name);
+      const extraCommits = await getUnreleasedRepoCommits(pkg.manifest.name, config.tagName);
       graduationCandidates.push({
         pkg,
         commits: cycleCommits,
@@ -332,7 +333,7 @@ export async function scanAndSelectPackages(
               }
 
               if (confirm) {
-                const lastStableTag = await getLastStableTagForPackage(pkgInfo.pkg.manifest.name);
+                const lastStableTag = await getLastStableTagForPackage(pkgInfo.pkg.manifest.name, config.tagName);
                 const cycleCommits = await getCommitsForPath(pkgInfo.pkg.dir, lastStableTag);
                 chosenCommits = cycleCommits;
                 liftCommits = computedLiftCommits.length > 0 ? computedLiftCommits : undefined;
@@ -593,7 +594,7 @@ export async function scanAndSelectPackages(
 
         const remoteSpinner = p.spinner();
         remoteSpinner.start(t().scan.graduationCheckingRemote);
-        const latestRemoteStable = await getLatestRemoteStableVersion(pkgName, ghToken);
+        const latestRemoteStable = await getLatestRemoteStableVersion(pkgName, config.tagName, ghToken);
         remoteSpinner.stop("");
 
         if (latestRemoteStable && semver.gte(latestRemoteStable, newVersion)) {
@@ -736,9 +737,7 @@ export async function scanAndSelectPackages(
     });
     const { items } = await formatCommitList(sortedForAnnotation, baseUrl, ghContext);
 
-    const tagHeader = config.tagName === "version-only"
-      ? newVersion
-      : `${pkgName}@${newVersion}`;
+    const tagHeader = formatTag(pkgName, newVersion, config.tagName);
 
     const annotationPrefix = config.annotationMessage
       ? `${config.annotationMessage}\n\n`
