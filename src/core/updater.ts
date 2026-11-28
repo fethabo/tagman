@@ -4,6 +4,7 @@ import { Octokit } from "@octokit/rest";
 import { PackageJson, packageJsonSchema } from "../schemas/index.js";
 import { readJson, writeJson, appendToFile } from "../utils/index.js";
 import { SemverBump } from "./commits.js";
+import { formatTag, type TagScheme } from "./tag-scheme.js";
 
 /** Cache of (owner/repo#hash) → GitHub login to avoid redundant API calls. */
 const githubLoginCache = new Map<string, string | null>();
@@ -218,23 +219,37 @@ export async function formatCommitList(
   return { items: parsedCommits, references: [] };
 }
 
+/**
+ * Compare link for a CHANGELOG header. Both ends use the configured tag scheme
+ * (#74): `0.11.0...0.12.0` with version-only, `pkg@0.11.0...pkg@0.12.0` with full.
+ */
+export function buildCompareLink(
+  baseUrl: string | null,
+  pkgName: string,
+  prevVersion: string,
+  newVersion: string,
+  tagName: TagScheme,
+): string {
+  const range = `${formatTag(pkgName, prevVersion, tagName)}...${formatTag(pkgName, newVersion, tagName)}`;
+  return baseUrl ? `${baseUrl}/compare/${range}` : range;
+}
+
 export async function appendToChangelog(
-  pkgName: string, 
-  pkgDir: string, 
-  newVersion: string, 
-  prevVersion: string, 
+  pkgName: string,
+  pkgDir: string,
+  newVersion: string,
+  prevVersion: string,
   commits: CommitInfo[],
+  tagName: TagScheme,
   ghContext?: { owner: string; repo: string; token: string | null },
 ): Promise<void> {
   const date = new Date().toISOString().split("T")[0];
   const changelogPath = path.join(pkgDir, "CHANGELOG.md");
-  
+
   const baseUrl = await getRepositoryBaseUrl();
-  const { items, references } = await formatCommitList(commits, baseUrl, ghContext);
-  
-  const compareLinkUrl = baseUrl 
-    ? `${baseUrl}/compare/${pkgName}@${prevVersion}...${pkgName}@${newVersion}`
-    : `${pkgName}@${prevVersion}...${pkgName}@${newVersion}`;
+  const { items } = await formatCommitList(commits, baseUrl, ghContext);
+
+  const compareLinkUrl = buildCompareLink(baseUrl, pkgName, prevVersion, newVersion, tagName);
 
   const header = `## [${newVersion}](${compareLinkUrl}) (${date})`;
 

@@ -16,6 +16,7 @@ import { runAfterRelease, type ReleaseResult } from "../../../plugins/index.js";
 import { saveCheckpoint, clearCheckpoint, loadCheckpoint, buildReleaseCommitMessage, type ReleaseState } from "../../../core/checkpoint.js";
 import { getDependents, type WorkspacePackage } from "../../../core/workspace.js";
 import type { TagmanConfig } from "../../../config.js";
+import { formatTag } from "../../../core/tag-scheme.js";
 import { t } from "../../../i18n/index.js";
 import { wizardSelect, SELECT_BACK } from "../wizard-select.js";
 import { ReportedError } from "../../../ui/mode.js";
@@ -28,23 +29,19 @@ export type ExecuteOptions = {
   yes?: boolean;
 };
 
-function buildTagName(pkgName: string, newVersion: string, config: TagmanConfig): string {
-  return config.tagName === "version-only" ? newVersion : `${pkgName}@${newVersion}`;
-}
-
 function releasedPackages(state: Map<string, ReleaseState>, config: TagmanConfig): ReleasedPackage[] {
   return Array.from(state.entries()).map(([name, d]) => ({
     name,
     previousVersion: d.pkg.manifest.version,
     newVersion: d.newVersion,
-    tag: buildTagName(name, d.newVersion, config),
+    tag: formatTag(name, d.newVersion, config.tagName),
   }));
 }
 
 function previewRelease(state: Map<string, ReleaseState>, config: TagmanConfig): void {
   p.log.info(t().execute.dryRunHeader);
   for (const [pkgName, details] of state.entries()) {
-    const tagName = buildTagName(pkgName, details.newVersion, config);
+    const tagName = formatTag(pkgName, details.newVersion, config.tagName);
     p.log.info(`  ${pkgName}: ${details.pkg.manifest.version} → ${details.newVersion}  (tag: ${tagName})`);
   }
   p.outro(t().execute.dryRunDone);
@@ -125,7 +122,7 @@ export async function executeRelease(
     for (const [pkgName, details] of state.entries()) {
       try {
         await updatePackageVersion(details.pkg.dir, details.newVersion);
-        await appendToChangelog(pkgName, details.pkg.dir, details.newVersion, details.pkg.manifest.version, details.changelogCommits ?? details.commits, ghContext);
+        await appendToChangelog(pkgName, details.pkg.dir, details.newVersion, details.pkg.manifest.version, details.changelogCommits ?? details.commits, config.tagName, ghContext);
         releasedLog[pkgName] = details.newVersion;
 
         const dependents = getDependents(pkgName, allPackages);
@@ -167,9 +164,7 @@ export async function executeRelease(
   try {
     for (const [pkgName, details] of state.entries()) {
       if (details.tagMessage) {
-        const tagName = config.tagName === "version-only"
-          ? details.newVersion
-          : `${pkgName}@${details.newVersion}`;
+        const tagName = formatTag(pkgName, details.newVersion, config.tagName);
         // Idempotent resume: skip tags already created before the crash.
         if (!(await tagExists(tagName))) {
           await createAnnotatedTag(tagName, details.tagMessage);
@@ -304,7 +299,7 @@ export async function executeRelease(
             continue;
           }
           try {
-            const tagName = buildTagName(pkgName, details.newVersion, config);
+            const tagName = formatTag(pkgName, details.newVersion, config.tagName);
             const isPrerelease = details.githubPrerelease ?? config.github.prerelease ?? false;
             const url = await createGithubRelease({
               token: ghToken,

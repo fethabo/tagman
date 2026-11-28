@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { dirtyTreeGate, behindRemoteGate, pendingCheckpointGate, type GateContext } from "./gates.js";
+import { dirtyTreeGate, behindRemoteGate, pendingCheckpointGate, tagSchemeGate, type GateContext } from "./gates.js";
 
 const base: GateContext = { interactive: false, allowDirty: false, allowBehind: false, requireRemoteSync: false };
 
@@ -40,5 +40,17 @@ test("pendingCheckpointGate", async (t) => {
   });
   await t.test("interactive asks", () => {
     assert.strictEqual(pendingCheckpointGate({ interactive: true }), "ask");
+  });
+});
+
+test("tagSchemeGate (#74)", async (t) => {
+  await t.test("version-only with a single package continues", () => {
+    assert.strictEqual(tagSchemeGate({ tagName: "version-only", packageCount: 1 }), "continue");
+  });
+  await t.test("version-only with several packages fails", () => {
+    assert.strictEqual(tagSchemeGate({ tagName: "version-only", packageCount: 2 }), "fail");
+  });
+  await t.test("full with several packages continues", () => {
+    assert.strictEqual(tagSchemeGate({ tagName: "full", packageCount: 5 }), "continue");
   });
 });

@@ -50,13 +50,16 @@ export type FailureReason =
   | "behind-remote"
   | "pending-checkpoint"
   | "interaction-required"
+  | "invalid-config"
   | "error";
 
 /**
- * Raised when a flow cannot continue without a human. Thrown only in
- * non-interactive mode; the interactive cancellation contract (return null)
- * is unchanged. `runCommand` turns it into an exit code and, under `--json`,
- * a `{ success: false, reason, message, ...extra }` document.
+ * A precondition failure with a stable `reason`. Mostly thrown when a flow
+ * cannot continue without a human (non-interactive mode only; the interactive
+ * cancellation contract of returning null is unchanged). `invalid-config` is
+ * the exception: a config/workspace combination no answer can fix, thrown in
+ * both modes (#74). `runCommand` turns it into an exit code and, under
+ * `--json`, a `{ success: false, reason, message, ...extra }` document.
  */
 export class HeadlessError extends Error {
   constructor(

@@ -16,7 +16,8 @@ import { showDraftResumePrompt } from "./draft-resume-prompt.js";
 import { showScanSummaryPrompt } from "./scan-summary-prompt.js";
 import { t } from "../../i18n/index.js";
 import { VERSION } from "../../version.js";
-import { getRunMode, setRunMode } from "../../ui/mode.js";
+import { getRunMode, setRunMode, HeadlessError } from "../../ui/mode.js";
+import { tagSchemeGate } from "../../ui/gates.js";
 import { reserveStdoutForJson } from "../../ui/output.js";
 import { runCommand, type ReleaseOutcome } from "../../ui/run.js";
 
@@ -106,6 +107,13 @@ export async function runWizardFlow(
   const { interactive } = getRunMode();
 
   const cfg = config ?? await loadConfig();
+  const pkgs = allPackages ?? await getWorkspacePackages(process.cwd(), cfg);
+
+  // Before the checkpoint step: a rollback under this config would delete the
+  // wrong tags too (#74).
+  if (tagSchemeGate({ tagName: cfg.tagName, packageCount: pkgs.length }) === "fail") {
+    throw new HeadlessError("invalid-config", t().headless.versionOnlyMonorepo(pkgs.length), 1, { packages: pkgs.length });
+  }
 
   const checkpointResult = await handleCheckpoint(cfg, {
     allowDirty: options.allowDirty ?? false,
@@ -115,7 +123,6 @@ export async function runWizardFlow(
 
   let { state, isRecovered, recoveredStep } = checkpointResult;
 
-  const pkgs = allPackages ?? await getWorkspacePackages(process.cwd(), cfg);
   if (pkgs.length === 0) {
     p.log.warn(t().wizard.noPackages);
     p.outro(t().wizard.bye);

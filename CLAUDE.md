@@ -34,6 +34,8 @@ src/
                                     appendToFile, fileExists
 
   core/
+    tag-scheme.ts                   formatTag / tagGlobs / parseTagVersion — single source of
+                                    truth for tag names per config.tagName (write AND read)
     workspace.ts                    Monorepo discovery — reads pnpm-workspace.yaml or
                                     package.json#workspaces; returns WorkspacePackage[];
                                     getDependents() finds reverse deps
@@ -333,11 +335,13 @@ tagman release --packages pkg-a,pkg-b --bump patch --yes --push  # Headless + pu
 
 **Headless safety gates** (exit 1, nothing written): no `--packages` (`packages-required`, lists `candidates`), unknown package (`package-not-found`), dirty tree, behind remote, pending checkpoint (`pending-checkpoint`; never auto-resumed or rolled back). A requested package with no commits at all is skipped unless `--bump` forces it.
 
+**Config gate** (exit 1 in every mode, nothing written): `tagName: "version-only"` in a workspace with more than one package fails with `invalid-config` (extra: `packages`), since bare version tags would collide across packages.
+
 **Exit codes:** `0` released / dry run / nothing to release / interactive cancel · `1` error or failed headless precondition · `2` a prompt was reached without interaction (`--yes` or no TTY).
 
 **JSON output shape:**
 - success: `{ success: true, dryRun?: true, packages: [{ name, previousVersion, newVersion, tag }] }`
-- otherwise: `{ success: false, reason, message, ...extra }`, where `reason` ∈ `no-commits | cancelled | packages-required | package-not-found | dirty-tree | behind-remote | pending-checkpoint | interaction-required | error` (stable, locale-independent) and `message` follows `--lang`
+- otherwise: `{ success: false, reason, message, ...extra }`, where `reason` ∈ `no-commits | cancelled | packages-required | package-not-found | dirty-tree | behind-remote | pending-checkpoint | interaction-required | invalid-config | error` (stable, locale-independent) and `message` follows `--lang`
 
 Entry points: `src/commands/wizard/index.ts` (flags, run mode), `src/ui/` (prompts guard, gates, exit codes, JSON), `src/commands/wizard/steps/scan-and-select.ts` (headless package/bump resolution), `src/commands/wizard/steps/execute.ts` (dry-run / push / outcome).
 
